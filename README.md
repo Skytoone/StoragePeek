@@ -265,14 +265,16 @@ public void onRenderItem(StoragePeekRenderItemEvent event) {
 
 ## 📜 Commands & Permissions
 
-| Command | Permission | Description |
-|---|---|---|
-| `/storagepeek reload` | `storagepeek.admin` | Reloads plugin configuration & messages |
-| `/storagepeek toggle` | `storagepeek.toggle` | Toggles 3D container preview on/off |
-| `/storagepeek themes` | `storagepeek.themes` | Opens the GUI theme selection menu |
-| `/storagepeek theme <name>` | `storagepeek.theme.<name>` | Sets player's active visual theme |
-| `/storagepeek filter <type>` | `storagepeek.filter` | Applies item filter (`ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT`) |
-| `/storagepeek purge` | `storagepeek.admin` | Purges orphaned display entities |
+| Command | Permission | Parent / Default | Description |
+|---|---|---|---|
+| `/storagepeek reload` | `storagepeek.reload` | `storagepeek.admin` (op) | Reloads plugin configuration & messages |
+| `/storagepeek purge` | `storagepeek.purge` | `storagepeek.admin` (op) | Purges orphaned display entities across all loaded chunks |
+| `/storagepeek toggle` | `storagepeek.toggle` | `storagepeek.admin` (op) | Toggles 3D container preview on/off for player |
+| `/storagepeek themes` | `storagepeek.themes` | `storagepeek.admin` (op) | Opens the GUI theme selection menu |
+| `/storagepeek theme <name>` | `storagepeek.theme.<name>` | `storagepeek.theme.*` (op) | Sets player's active visual theme |
+| `/storagepeek filter <type>` | `storagepeek.filter` | `storagepeek.admin` (op) | Applies item filter (`ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT`) |
+| *(Bypass Combat)* | `storagepeek.bypass.combat` | `storagepeek.admin` (op) | Bypasses PvP combat-culling restriction |
+| *(Bypass Protection)* | `storagepeek.bypass.protection` | `storagepeek.admin` (op) | Bypasses region claim protection checks |
 
 ---
 
