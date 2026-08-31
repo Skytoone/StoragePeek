@@ -280,6 +280,17 @@ public void onRenderItem(StoragePeekRenderItemEvent event) {
 
 ---
 
+## 📊 PlaceholderAPI Support
+
+| Placeholder | Description | Example Output |
+|---|---|---|
+| `%storagepeek_session_active%` | Indicates if player is currently peeking a container | `Yes` / `No` |
+| `%storagepeek_disabled%` | Indicates if player has disabled 3D previews | `true` / `false` |
+| `%storagepeek_active_theme%` | Returns player's currently selected theme | `DEFAULT`, `ENDER`, `RICH` |
+| `%storagepeek_nearest_chest_distance%` | Distance to target container from `/sp find` | `14.2m` or `N/A` |
+
+---
+
 ## 📄 License & Credits
 
 - Developed & Maintained by **Skynex / Skytoone**

@@ -8,6 +8,7 @@ import fr.skynex.storagepeek.session.PeekSession;
 import fr.skynex.storagepeek.task.RaycastTask;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.Material;
 import org.bukkit.Bukkit;
@@ -154,6 +155,12 @@ public final class StoragePeek extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new fr.skynex.storagepeek.listener.TransferVisualizerListener(this), this);
         this.exhibitionFrameListener = new fr.skynex.storagepeek.listener.ExhibitionFrameListener(this);
         getServer().getPluginManager().registerEvents(exhibitionFrameListener, this);
+
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            new fr.skynex.storagepeek.hook.StoragePeekPAPIExpansion(this).register();
+            getLogger().info("Successfully registered PlaceholderAPI expansion (%storagepeek_...)!");
+        }
+
         getCommand("storagepeek").setExecutor((sender, command, label, args) -> {
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
                 if (!sender.hasPermission("storagepeek.reload") && !sender.hasPermission("storagepeek.admin")) {
@@ -408,6 +415,11 @@ public final class StoragePeek extends JavaPlugin {
     }
 
     public void playConfigSound(Player player, String soundPath, Sound defaultSound, float defaultVolume, float defaultPitch) {
+        playConfigSoundAt(player, player != null ? player.getLocation() : null, soundPath, defaultSound, defaultVolume, defaultPitch);
+    }
+
+    public void playConfigSoundAt(Player player, Location loc, String soundPath, Sound defaultSound, float defaultVolume, float defaultPitch) {
+        if (player == null || !player.isOnline()) return;
         if (!getConfig().getBoolean("sounds.enabled", true)) {
             return;
         }
@@ -435,7 +447,8 @@ public final class StoragePeek extends JavaPlugin {
         }
         double volume = getConfig().getDouble("sounds." + soundPath + ".volume", defaultVolume);
         double pitch = getConfig().getDouble("sounds." + soundPath + ".pitch", defaultPitch);
-        player.playSound(player.getLocation(), sound, (float) volume, (float) pitch);
+        Location soundLoc = (loc != null && loc.getWorld() != null) ? loc : player.getLocation();
+        player.playSound(soundLoc, sound, (float) volume, (float) pitch);
     }
 
     public void loadConfigurationCache() {

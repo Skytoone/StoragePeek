@@ -50,6 +50,10 @@ public class RaycastTask extends BukkitRunnable {
         }
     }
 
+    public Location getCompassTarget(Player player) {
+        return compassTargets.get(player.getUniqueId());
+    }
+
     public void cleanupCompassArrow(UUID uuid) {
         ItemDisplay display = compassArrows.remove(uuid);
         if (display != null && display.isValid()) {

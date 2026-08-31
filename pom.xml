@@ -81,6 +81,10 @@
             <id>momirealms-repo</id>
             <url>https://repo.momirealms.net/releases/</url>
         </repository>
+        <repository>
+            <id>placeholderapi</id>
+            <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
+        </repository>
     </repositories>
 
     <build>
