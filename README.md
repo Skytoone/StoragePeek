@@ -188,6 +188,12 @@ api.registerSlotHoverSound(
 );
 ```
 
+#### 3D Pagination API
+```java
+// Set active 3D preview page for large inventories (54+ slots)
+api.setSessionPage(player, 1);
+```
+
 #### 3D Custom Display Transformations API
 ```java
 // Rotate Netherite Swords in 3D and make them glow purple
