@@ -190,6 +190,16 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
+    public void onTeleport(org.bukkit.event.player.PlayerTeleportEvent event) {
+        cleanupPlayer(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onChangedWorld(org.bukkit.event.player.PlayerChangedWorldEvent event) {
+        cleanupPlayer(event.getPlayer());
+    }
+
+    @EventHandler
     public void onWorldLoad(org.bukkit.event.world.WorldLoadEvent event) {
         plugin.addDisabledWorldToCache(event.getWorld());
     }
