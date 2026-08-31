@@ -4,6 +4,7 @@ import fr.skynex.storagepeek.StoragePeek;
 import fr.skynex.storagepeek.session.PeekSession;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -385,5 +386,20 @@ public class QuickTakeListener implements Listener {
             }
         }
         return amount;
+    }
+
+    private void spawnItemTransferTrail(Location from, Location to) {
+        if (from == null || to == null || from.getWorld() == null) return;
+        org.bukkit.World world = from.getWorld();
+        org.bukkit.util.Vector vec = to.toVector().subtract(from.toVector());
+        double length = vec.length();
+        if (length < 0.1) return;
+        org.bukkit.util.Vector step = vec.clone().normalize().multiply(0.3);
+        int points = (int) (length / 0.3);
+
+        for (int i = 0; i < Math.min(20, points); i++) {
+            Location pLoc = from.clone().add(step.clone().multiply(i));
+            world.spawnParticle(org.bukkit.Particle.CRIT, pLoc, 2, 0.05, 0.05, 0.05, 0.02);
+        }
     }
 }

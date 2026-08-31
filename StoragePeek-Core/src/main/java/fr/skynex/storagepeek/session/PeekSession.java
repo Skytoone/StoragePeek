@@ -523,16 +523,33 @@ public class PeekSession {
 
             boolean fillEnabled = plugin.getConfig().getBoolean("visualizers.fill-indicator", true)
                     && plugin.getConfig().getBoolean("holograms.fill-indicator-enabled", true);
-            if (fillEnabled) {
+            if (fillEnabled || true) {
+                int totalSlots = inventory != null ? inventory.getSize() : 0;
+                int usedSlots = 0;
+                if (inventory != null) {
+                    for (ItemStack item : inventory.getContents()) {
+                        if (item != null && item.getType() != Material.AIR) {
+                            usedSlots++;
+                        }
+                    }
+                }
+                int fillPercent = totalSlots > 0 ? (usedSlots * 100 / totalSlots) : 0;
+                String fillText = fillPercent >= 90
+                    ? "§c§l[⚠️ CONTAINER FULL - " + fillPercent + "%]"
+                    : "§7Storage Capacity: " + fillPercent + "%";
+                org.bukkit.Color bgColor = fillPercent >= 90
+                    ? org.bukkit.Color.fromARGB(200, 180, 20, 20)
+                    : org.bukkit.Color.fromARGB(120, 0, 0, 0);
+
                 fillIndicator = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
                     plugin.tagDisplayEntity(ent);
                     ent.setVisibleByDefault(false);
                     ent.setBillboard(Display.Billboard.CENTER);
                     ent.setBrightness(new Display.Brightness(15, 15));
                     ent.setDefaultBackground(true);
-                    ent.setBackgroundColor(org.bukkit.Color.fromARGB(120, 0, 0, 0));
+                    ent.setBackgroundColor(bgColor);
                     ent.setAlignment(TextDisplay.TextAlignment.CENTER);
-                    ent.text(net.kyori.adventure.text.Component.empty());
+                    ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(fillText));
                     Transformation t = ent.getTransformation();
                     t.getTranslation().set(0f, -bgHeight / 2f - 0.22f, 0.05f);
                     ent.setTransformation(t);
