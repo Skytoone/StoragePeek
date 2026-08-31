@@ -1,12 +1,58 @@
 name: StoragePeek
 version: '${project.version}'
 main: fr.skynex.storagepeek.StoragePeek
-api-version: '1.20'
+api-version: '1.21'
 folia-supported: true
 author: Skynex
-description: A premium 3D container peeking plugin using ItemDisplays.
+description: A premium visual container peeking plugin using ItemDisplays.
 softdepend: [Oraxen, Nexo, ItemsAdder, WorldGuard, Lands, GriefPrevention, BentoBox, SuperiorSkyblock2, Towny, LWC, Residence, CraftEngine, CombatLogX, CombatTagPlus, PvPManager, DeluxeCombat, GriefDefender, PlotSquared]
 commands:
   storagepeek:
     description: Main command for StoragePeek.
     aliases: [sp, peek]
+permissions:
+  storagepeek.admin:
+    description: Allows administrative access to StoragePeek (reload command).
+    default: op
+  storagepeek.toggle:
+    description: Allows players to toggle peeking on or off for themselves.
+    default: op
+  storagepeek.peek:
+    description: Allows players to peek into all allowed containers.
+    default: op
+  storagepeek.filter:
+    description: Allows players to use the /storagepeek filter command.
+    default: op
+  storagepeek.peek.*:
+    description: Allows players to peek into all container types (wildcard).
+    default: op
+    children:
+      storagepeek.peek: true
+      storagepeek.peek.chest: true
+      storagepeek.peek.trapped_chest: true
+      storagepeek.peek.ender_chest: true
+      storagepeek.peek.barrel: true
+      storagepeek.peek.shulker_box: true
+      storagepeek.peek.furnace: true
+      storagepeek.peek.blast_furnace: true
+      storagepeek.peek.smoker: true
+      storagepeek.peek.brewing_stand: true
+      storagepeek.peek.dispenser: true
+      storagepeek.peek.dropper: true
+      storagepeek.peek.hopper: true
+      storagepeek.peek.crafting_table: true
+      storagepeek.peek.crafter: true
+      storagepeek.peek.chiseled_bookshelf: true
+      storagepeek.peek.decorated_pot: true
+      storagepeek.peek.jukebox: true
+  storagepeek.bypass.combat:
+    description: Allows players to bypass the combat culling check.
+    default: op
+  storagepeek.bypass.protection:
+    description: Allows players to bypass region/land protection checks when peeking containers.
+    default: op
+  storagepeek.themes:
+    description: Allows players to open the themes menu.
+    default: op
+
+
