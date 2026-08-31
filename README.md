@@ -273,6 +273,8 @@ public void onRenderItem(StoragePeekRenderItemEvent event) {
 | `/storagepeek themes` | `storagepeek.themes` | `storagepeek.admin` (op) | Opens the GUI theme selection menu |
 | `/storagepeek theme <name>` | `storagepeek.theme.<name>` | `storagepeek.theme.*` (op) | Sets player's active visual theme |
 | `/storagepeek filter <type>` | `storagepeek.filter` | `storagepeek.admin` (op) | Applies item filter (`ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT`) |
+| `/storagepeek find <item>` | `storagepeek.find` | `storagepeek.admin` (op) | Points floating 3D compass arrow to nearest container holding item |
+| `/storagepeek deposit [r]` | `storagepeek.deposit` | `storagepeek.admin` (op) | Auto-deposits matching inventory items into nearby containers |
 | *(Bypass Combat)* | `storagepeek.bypass.combat` | `storagepeek.admin` (op) | Bypasses PvP combat-culling restriction |
 | *(Bypass Protection)* | `storagepeek.bypass.protection` | `storagepeek.admin` (op) | Bypasses region claim protection checks |
 

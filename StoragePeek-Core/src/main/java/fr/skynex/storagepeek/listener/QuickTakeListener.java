@@ -110,6 +110,10 @@ public class QuickTakeListener implements Listener {
             handleQuickTake(player, inv, slot);
         }
 
+        if (session.getBlock() != null) {
+            plugin.getContainerHistoryManager().recordAccess(session.getBlock().getLocation(), player.getName(), "Quick action on slot " + (slot + 1));
+        }
+
         session.saveHandInventory();
         session.update(true); // Sync view immediately
     }

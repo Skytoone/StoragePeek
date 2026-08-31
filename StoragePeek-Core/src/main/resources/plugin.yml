@@ -17,11 +17,19 @@ permissions:
     children:
       storagepeek.reload: true
       storagepeek.purge: true
+      storagepeek.find: true
+      storagepeek.deposit: true
       storagepeek.toggle: true
       storagepeek.themes: true
       storagepeek.filter: true
       storagepeek.bypass.combat: true
       storagepeek.bypass.protection: true
+  storagepeek.find:
+    description: Allows searching for items and pointing 3D compass (/storagepeek find).
+    default: op
+  storagepeek.deposit:
+    description: Allows auto-depositing inventory items into nearby containers (/storagepeek deposit).
+    default: op
   storagepeek.reload:
     description: Allows reloading plugin configuration (/storagepeek reload).
     default: op

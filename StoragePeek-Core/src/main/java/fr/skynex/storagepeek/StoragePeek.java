@@ -34,6 +34,7 @@ public final class StoragePeek extends JavaPlugin {
     private fr.skynex.storagepeek.listener.PlayerListener playerListener;
     private fr.skynex.storagepeek.visualizer.VisualizerManager visualizerManager;
     private fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask lootChestGlowTaskHandle;
+    private fr.skynex.storagepeek.manager.ContainerHistoryManager containerHistoryManager;
 
     // Configuration values (Cached for performance)
     private double maxDistance;
@@ -104,6 +105,7 @@ public final class StoragePeek extends JavaPlugin {
         this.messageManager = new MessageManager(this);
         this.protectionManager = new ProtectionManager();
         this.hookManager = new HookManager();
+        this.containerHistoryManager = new fr.skynex.storagepeek.manager.ContainerHistoryManager();
         this.visualizerManager = new fr.skynex.storagepeek.visualizer.VisualizerManager(this);
         loadConfigurationCache();
 
@@ -265,11 +267,66 @@ public final class StoragePeek extends JavaPlugin {
                 int purged = purgeOrphanedEntities();
                 sender.sendMessage("§aPurged " + purged + " orphaned StoragePeek display entities across all loaded chunks.");
                 return true;
+            } else if (args.length > 1 && args[0].equalsIgnoreCase("find")) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(messageManager.getMessage("only-players"));
+                    return true;
+                }
+                if (!player.hasPermission("storagepeek.find") && !player.hasPermission("storagepeek.admin")) {
+                    player.sendMessage(messageManager.getMessage("no-permission"));
+                    return true;
+                }
+                String wantedName = args[1].toUpperCase().trim();
+                Material mat = Material.matchMaterial(wantedName);
+                if (mat == null) {
+                    player.sendMessage("§cInvalid item material! Example: /sp find DIAMOND");
+                    return true;
+                }
+
+                List<org.bukkit.block.Block> containers = ((fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get())
+                    .findNearbyContainers(player.getLocation(), 32.0, mat);
+
+                if (containers.isEmpty()) {
+                    player.sendMessage("§cNo nearby containers containing " + mat.name() + " were found within 32 blocks.");
+                    return true;
+                }
+
+                org.bukkit.block.Block nearest = containers.get(0);
+                player.sendMessage("§aFound " + containers.size() + " container(s) with " + mat.name() + "! Pointing compass arrow to nearest container.");
+                getRaycastTask().setCompassTarget(player, nearest.getLocation().add(0.5, 0.5, 0.5));
+                playConfigSound(player, "sort", Sound.ITEM_LODESTONE_COMPASS_LOCK, 0.8f, 1.2f);
+                return true;
+            } else if (args.length > 0 && args[0].equalsIgnoreCase("deposit")) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(messageManager.getMessage("only-players"));
+                    return true;
+                }
+                if (!player.hasPermission("storagepeek.deposit") && !player.hasPermission("storagepeek.admin")) {
+                    player.sendMessage(messageManager.getMessage("no-permission"));
+                    return true;
+                }
+                int radius = 16;
+                if (args.length > 1) {
+                    try {
+                        radius = Math.min(32, Math.max(1, Integer.parseInt(args[1])));
+                    } catch (NumberFormatException ignored) {}
+                }
+
+                int depositedCount = handleSmartBaseDeposit(player, radius);
+                if (depositedCount > 0) {
+                    player.sendMessage("§a[StoragePeek] Deposited " + depositedCount + " matching items into nearby containers!");
+                    playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.2f);
+                } else {
+                    player.sendMessage("§e[StoragePeek] No matching container slots found nearby for items in your inventory.");
+                }
+                return true;
             }
             sender.sendMessage(messageManager.getMessage("usage-reload"));
             sender.sendMessage(messageManager.getMessage("usage-toggle"));
             sender.sendMessage(messageManager.getMessage("usage-themes"));
             sender.sendMessage(messageManager.getMessage("usage-filter"));
+            sender.sendMessage("§e/storagepeek find <item> §7- Point compass arrow to nearby chest containing item.");
+            sender.sendMessage("§e/storagepeek deposit [radius] §7- Auto-deposit matching items into nearby chests.");
             sender.sendMessage("§e/storagepeek purge §7- Purge orphaned display entities.");
             return true;
         });
@@ -332,6 +389,10 @@ public final class StoragePeek extends JavaPlugin {
 
     public MessageManager getMessageManager() {
         return messageManager;
+    }
+
+    public fr.skynex.storagepeek.manager.ContainerHistoryManager getContainerHistoryManager() {
+        return containerHistoryManager;
     }
 
     public RaycastTask getRaycastTask() {
@@ -717,5 +778,57 @@ public final class StoragePeek extends JavaPlugin {
             }
         }
         return count;
+    }
+
+    private int handleSmartBaseDeposit(Player player, int radius) {
+        int totalDeposited = 0;
+        org.bukkit.Location pLoc = player.getLocation();
+        if (pLoc.getWorld() == null) return 0;
+
+        int bx = pLoc.getBlockX();
+        int by = pLoc.getBlockY();
+        int bz = pLoc.getBlockZ();
+
+        List<org.bukkit.block.Block> containers = new java.util.ArrayList<>();
+        for (int x = bx - radius; x <= bx + radius; x++) {
+            for (int y = Math.max(pLoc.getWorld().getMinHeight(), by - 8); y <= Math.min(pLoc.getWorld().getMaxHeight(), by + 8); y++) {
+                for (int z = bz - radius; z <= bz + radius; z++) {
+                    org.bukkit.block.Block block = pLoc.getWorld().getBlockAt(x, y, z);
+                    if (getHookManager().isCustomContainer(block) || getRaycastTask().getAllowedBlocks().contains(block.getType())) {
+                        if (protectionManager.canAccess(player, block.getLocation())) {
+                            containers.add(block);
+                        }
+                    }
+                }
+            }
+        }
+
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            org.bukkit.inventory.ItemStack item = player.getInventory().getItem(slot);
+            if (item == null || item.getType() == org.bukkit.Material.AIR) continue;
+
+            for (org.bukkit.block.Block containerBlock : containers) {
+                org.bukkit.inventory.Inventory containerInv = getHookManager().getInventory(containerBlock, player);
+                if (containerInv == null) continue;
+
+                if (containerInv.contains(item.getType())) {
+                    java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> remaining = containerInv.addItem(item);
+                    if (remaining.isEmpty()) {
+                        totalDeposited += item.getAmount();
+                        player.getInventory().setItem(slot, null);
+                        containerBlock.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, containerBlock.getLocation().add(0.5, 1.0, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                        break;
+                    } else {
+                        int deposited = item.getAmount() - remaining.get(0).getAmount();
+                        if (deposited > 0) {
+                            totalDeposited += deposited;
+                            player.getInventory().setItem(slot, remaining.get(0));
+                            containerBlock.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, containerBlock.getLocation().add(0.5, 1.0, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                        }
+                    }
+                }
+            }
+        }
+        return totalDeposited;
     }
 }

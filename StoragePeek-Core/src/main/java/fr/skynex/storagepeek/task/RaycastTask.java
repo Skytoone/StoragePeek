@@ -13,7 +13,10 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.util.RayTraceResult;
-
+import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Transformation;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -33,7 +36,70 @@ public class RaycastTask extends BukkitRunnable {
 
     private final Map<UUID, PlayerState> lastStates = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Long> lastPermissionWarning = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Location> compassTargets = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, ItemDisplay> compassArrows = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Integer> compassCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean entitiesEnabled;
+
+    public void setCompassTarget(Player player, Location target) {
+        if (target == null) {
+            compassTargets.remove(player.getUniqueId());
+            cleanupCompassArrow(player.getUniqueId());
+        } else {
+            compassTargets.put(player.getUniqueId(), target);
+        }
+    }
+
+    public void cleanupCompassArrow(UUID uuid) {
+        ItemDisplay display = compassArrows.remove(uuid);
+        if (display != null && display.isValid()) {
+            display.remove();
+        }
+    }
+
+    public void cleanupAllCompassArrows() {
+        for (ItemDisplay display : compassArrows.values()) {
+            if (display != null && display.isValid()) {
+                display.remove();
+            }
+        }
+        compassArrows.clear();
+        compassTargets.clear();
+    }
+
+    public void tickLootTrackerCompass(Player player) {
+        UUID uuid = player.getUniqueId();
+        Location target = compassTargets.get(uuid);
+        if (target == null) return;
+
+        if (!player.isOnline() || !player.getWorld().equals(target.getWorld()) || player.getLocation().distanceSquared(target) < 4.0) {
+            setCompassTarget(player, null);
+            return;
+        }
+
+        ItemDisplay arrow = compassArrows.get(uuid);
+        Location headLoc = player.getEyeLocation().add(0, 0.8, 0);
+        org.bukkit.util.Vector dir = target.clone().subtract(headLoc).toVector().normalize();
+        Location arrowLoc = headLoc.clone();
+        arrowLoc.setDirection(dir);
+
+        if (arrow == null || !arrow.isValid()) {
+            ItemDisplay newArrow = headLoc.getWorld().spawn(headLoc, ItemDisplay.class, ent -> {
+                StoragePeek.getInstance().tagDisplayEntity(ent);
+                ent.setItemStack(new ItemStack(Material.AMETHYST_SHARD));
+                ent.setBillboard(Display.Billboard.FIXED);
+                ent.setBrightness(new Display.Brightness(15, 15));
+                ent.setTeleportDuration(1);
+                Transformation t = ent.getTransformation();
+                t.getScale().set(0.35f, 0.35f, 0.35f);
+                ent.setTransformation(t);
+            });
+            player.showEntity(StoragePeek.getInstance(), newArrow);
+            compassArrows.put(uuid, newArrow);
+        } else {
+            arrow.teleport(arrowLoc);
+        }
+    }
 
     // Combat Hooks Cache
     private boolean combatLogXChecked = false;
@@ -585,81 +651,6 @@ public class RaycastTask extends BukkitRunnable {
 
     public java.util.Set<EntityType> getAllowedEntities() {
         return allowedEntities;
-    }
-
-    private final Map<UUID, Location> compassTargets = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<UUID, Integer> compassCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<UUID, org.bukkit.entity.ItemDisplay> compassArrows = new java.util.concurrent.ConcurrentHashMap<>();
-
-    public void tickLootTrackerCompass(Player player) {
-        UUID uuid = player.getUniqueId();
-        boolean holdingCompass = player.getInventory().getItemInMainHand().getType() == Material.COMPASS
-                || player.getInventory().getItemInOffHand().getType() == Material.COMPASS;
-
-        if (!player.isSneaking() || !holdingCompass) {
-            cleanupCompassArrow(uuid);
-            return;
-        }
-
-        int cooldown = compassCooldowns.getOrDefault(uuid, 0);
-        if (cooldown <= 0) {
-            compassCooldowns.put(uuid, 10);
-            Location nearest = findNearestLootChest(player);
-            if (nearest != null) {
-                compassTargets.put(uuid, nearest);
-            } else {
-                compassTargets.remove(uuid);
-            }
-        } else {
-            compassCooldowns.put(uuid, cooldown - 1);
-        }
-
-        Location target = compassTargets.get(uuid);
-        if (target == null) {
-            cleanupCompassArrow(uuid);
-            return;
-        }
-
-        Location eye = player.getEyeLocation();
-        org.bukkit.util.Vector look = eye.getDirection().normalize();
-        Location arrowLoc = eye.clone().add(look.multiply(0.8));
-        org.bukkit.util.Vector diff = target.toVector().subtract(arrowLoc.toVector()).normalize();
-        arrowLoc.setDirection(diff);
-
-        org.bukkit.entity.ItemDisplay arrow = compassArrows.get(uuid);
-        if (arrow == null || !arrow.isValid()) {
-            arrow = arrowLoc.getWorld().spawn(arrowLoc, org.bukkit.entity.ItemDisplay.class, ent -> {
-                StoragePeek.getInstance().tagDisplayEntity(ent);
-                ent.setItemStack(new org.bukkit.inventory.ItemStack(Material.ARROW));
-                ent.setBillboard(org.bukkit.entity.Display.Billboard.FIXED);
-                ent.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
-                org.bukkit.util.Transformation t = ent.getTransformation();
-                t.getScale().set(0.15f, 0.15f, 0.15f);
-                t.getLeftRotation().rotationXYZ((float) Math.toRadians(90), 0f, 0f);
-                ent.setTransformation(t);
-                
-                ent.setVisibleByDefault(false);
-            });
-            player.showEntity(StoragePeek.getInstance(), arrow);
-            compassArrows.put(uuid, arrow);
-        } else {
-            arrow.teleport(arrowLoc);
-        }
-    }
-
-    public void cleanupCompassArrow(UUID uuid) {
-        compassCooldowns.remove(uuid);
-        compassTargets.remove(uuid);
-        org.bukkit.entity.ItemDisplay arrow = compassArrows.remove(uuid);
-        if (arrow != null) {
-            arrow.remove();
-        }
-    }
-
-    public void cleanupAllCompassArrows() {
-        for (UUID uuid : new HashSet<>(compassArrows.keySet())) {
-            cleanupCompassArrow(uuid);
-        }
     }
 
     private Location findNearestLootChest(Player player) {
