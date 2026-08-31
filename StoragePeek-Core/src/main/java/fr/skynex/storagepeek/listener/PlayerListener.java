@@ -161,6 +161,9 @@ public class PlayerListener implements Listener {
 
     private void cleanupPlayer(Player player) {
         plugin.getRaycastTask().clearCache(player.getUniqueId());
+        if (fr.skynex.storagepeek.api.StoragePeekProvider.get() instanceof fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl) {
+            apiImpl.clearSessionPage(player.getUniqueId());
+        }
         PeekSession session = plugin.getActiveSessions().remove(player.getUniqueId());
         if (session != null) {
             session.cleanup(true);

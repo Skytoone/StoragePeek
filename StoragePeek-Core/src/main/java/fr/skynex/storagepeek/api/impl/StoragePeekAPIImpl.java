@@ -320,6 +320,10 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
         return sessionPages.getOrDefault(player.getUniqueId(), 0);
     }
 
+    public void clearSessionPage(@NotNull UUID playerUUID) {
+        sessionPages.remove(playerUUID);
+    }
+
     @Nullable
     public CustomTheme getCustomTheme(@NotNull String themeId) {
         return customThemes.get(themeId.toUpperCase());

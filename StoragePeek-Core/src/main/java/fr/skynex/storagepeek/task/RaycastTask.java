@@ -410,6 +410,9 @@ public class RaycastTask extends BukkitRunnable {
     public void clearCache(UUID uuid) {
         lastStates.remove(uuid);
         lastPermissionWarning.remove(uuid);
+        compassTargets.remove(uuid);
+        compassCooldowns.remove(uuid);
+        cleanupCompassArrow(uuid);
     }
 
     private boolean isInventoryEmpty(Player player, Block block, Entity entity) {
