@@ -291,6 +291,12 @@ public void onRenderItem(StoragePeekRenderItemEvent event) {
 | `%storagepeek_disabled%` | Indicates if player has disabled 3D previews | `true` / `false` |
 | `%storagepeek_active_theme%` | Returns player's currently selected theme | `DEFAULT`, `ENDER`, `RICH` |
 | `%storagepeek_nearest_chest_distance%` | Distance to target container from `/sp find` | `14.2m` or `N/A` |
+| `%storagepeek_session_block_type%` | Targeted container block material | `CHEST`, `BARREL`, `NONE` |
+| `%storagepeek_session_page%` | Targeted container preview page index | `1`, `2` |
+| `%storagepeek_session_item_count%` | Total items inside targeted container | `128` |
+| `%storagepeek_session_total_value%` | Total economic value of targeted container | `1450.00` |
+| `%storagepeek_session_tagline%` | Tagline / custom 3D label text of container | `[⛏️ Ore Vault]` |
+| `%storagepeek_session_frozen%` | Indicates if preview orientation is locked | `true` / `false` |
 
 ---
 
