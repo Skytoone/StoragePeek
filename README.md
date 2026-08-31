@@ -153,6 +153,47 @@ api.registerCustomTheme(new CustomTheme(
 ));
 ```
 
+#### Loot Security & Item Masking API
+```java
+// Mask nether stars with a barrier placeholder unless the player has unlocked a key
+api.registerLootSecurityFilter((player, block, entity, item) -> {
+    if (item.getType() == Material.NETHER_STAR && !MyRpgPlugin.hasKey(player)) {
+        return SecurityResult.maskWithPlaceholder(Material.BARRIER, "§c[Locked Vault - Key Required]");
+    }
+    return SecurityResult.allow();
+});
+```
+
+#### Storage Search & Summary API
+```java
+// Find nearby container blocks within 15 blocks containing Diamonds
+List<Block> diamondChests = api.findNearbyContainers(player.getLocation(), 15.0, Material.DIAMOND);
+
+// Get total item count summary stored inside a container
+Map<Material, Integer> summary = api.getContainerSummary(chestBlock);
+```
+
+#### 3D Holographic Container Tagline API
+```java
+// Set a custom 3D holographic title above a shop or guild vault container
+api.setContainerTagline(chestBlock, "§e[ChestShop] §aSelling Diamonds for $50");
+```
+
+#### Dynamic Hover Slot Audio API
+```java
+// Play custom iron armor sound when hovering over armor items in 3D
+api.registerSlotHoverSound(
+    item -> item.getType().name().contains("HELMET") || item.getType().name().contains("CHESTPLATE"),
+    Sound.ITEM_ARMOR_EQUIP_IRON, 0.6f, 1.2f
+);
+```
+
+#### 3D Pagination API
+```java
+// Set active 3D preview page for large inventories
+api.setSessionPage(player, 1);
+```
+
 #### Listening to API Events
 ```java
 @EventHandler

@@ -103,6 +103,7 @@ public class PeekSession {
     private int hoveredSlot = -1;
     private TextDisplay hoverLabel;
     private TextDisplay fillIndicator;
+    private TextDisplay taglineBanner;
     private int sortAnimationTicks = 0;
     private boolean cleanedUp = false;
     private boolean isSpawning = false;
@@ -384,14 +385,39 @@ public class PeekSession {
                 org.bukkit.Color customGlowColor = null;
 
                 if (item != null && item.getType() != Material.AIR) {
-                    fr.skynex.storagepeek.api.events.StoragePeekRenderItemEvent renderEvent =
-                        new fr.skynex.storagepeek.api.events.StoragePeekRenderItemEvent(player, item, i);
-                    org.bukkit.Bukkit.getPluginManager().callEvent(renderEvent);
-                    if (renderEvent.isCancelled()) {
-                        item = null;
-                    } else {
-                        scaleMultiplier = renderEvent.getCustomScaleMultiplier();
-                        customGlowColor = renderEvent.getGlowColor();
+                    fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
+                        (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
+                    
+                    for (fr.skynex.storagepeek.api.security.LootSecurityFilter filter : apiImpl.getSecurityFilters()) {
+                        fr.skynex.storagepeek.api.security.SecurityResult result = filter.evaluate(player, block, entity, item);
+                        if (result.getType() == fr.skynex.storagepeek.api.security.SecurityResult.Type.HIDE) {
+                            item = null;
+                            break;
+                        } else if (result.getType() == fr.skynex.storagepeek.api.security.SecurityResult.Type.MASK) {
+                            Material mat = result.getPlaceholderMaterial() != null ? result.getPlaceholderMaterial() : Material.BARRIER;
+                            item = new ItemStack(mat);
+                            if (result.getCustomName() != null) {
+                                org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+                                if (meta != null) {
+                                    meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                                            .deserialize(result.getCustomName()));
+                                    item.setItemMeta(meta);
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                    if (item != null) {
+                        fr.skynex.storagepeek.api.events.StoragePeekRenderItemEvent renderEvent =
+                            new fr.skynex.storagepeek.api.events.StoragePeekRenderItemEvent(player, item, i);
+                        org.bukkit.Bukkit.getPluginManager().callEvent(renderEvent);
+                        if (renderEvent.isCancelled()) {
+                            item = null;
+                        } else {
+                            scaleMultiplier = renderEvent.getCustomScaleMultiplier();
+                            customGlowColor = renderEvent.getGlowColor();
+                        }
                     }
                 }
 
@@ -488,6 +514,28 @@ public class PeekSession {
                 });
                 anchor.addPassenger(fillIndicator);
                 showEntityToPlayer(fillIndicator);
+            }
+
+            fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
+                (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
+            String tagline = apiImpl.getContainerTagline(block, entity);
+            if (tagline != null && !tagline.isEmpty()) {
+                taglineBanner = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
+                    plugin.tagDisplayEntity(ent);
+                    ent.setVisibleByDefault(false);
+                    ent.setBillboard(Display.Billboard.CENTER);
+                    ent.setBrightness(new Display.Brightness(15, 15));
+                    ent.setDefaultBackground(true);
+                    ent.setBackgroundColor(org.bukkit.Color.fromARGB(160, 20, 20, 20));
+                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
+                    ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                            .deserialize(tagline));
+                    Transformation t = ent.getTransformation();
+                    t.getTranslation().set(0f, bgHeight / 2f + 0.25f, 0.05f);
+                    ent.setTransformation(t);
+                });
+                anchor.addPassenger(taglineBanner);
+                showEntityToPlayer(taglineBanner);
             }
         } finally {
             isSpawning = false;
@@ -801,6 +849,17 @@ public class PeekSession {
                     entry.display().setTransformation(t);
                     if (matches) {
                         StoragePeek.getInstance().playConfigSound(player, "hover", Sound.BLOCK_LEVER_CLICK, 0.2f, 1.5f);
+                        if (hoveredItem != null) {
+                            fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
+                                (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
+                            for (fr.skynex.storagepeek.api.audio.SlotHoverSound customSound : apiImpl.getSlotHoverSounds()) {
+                                try {
+                                    if (customSound.getItemMatcher().test(hoveredItem)) {
+                                        player.playSound(player.getLocation(), customSound.getSound(), customSound.getVolume(), customSound.getPitch());
+                                    }
+                                } catch (Throwable ignored) {}
+                            }
+                        }
                     }
                     break;
                 }
@@ -1227,6 +1286,10 @@ public class PeekSession {
         if (fillIndicator != null) {
             fillIndicator.remove();
             fillIndicator = null;
+        }
+        if (taglineBanner != null) {
+            taglineBanner.remove();
+            taglineBanner = null;
         }
         if (hoverHighlight != null) {
             hoverHighlight.remove();

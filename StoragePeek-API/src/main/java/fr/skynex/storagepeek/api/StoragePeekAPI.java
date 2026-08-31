@@ -1,17 +1,27 @@
 package fr.skynex.storagepeek.api;
 
+import fr.skynex.storagepeek.api.audio.SlotHoverSound;
 import fr.skynex.storagepeek.api.provider.CustomContainerProvider;
+import fr.skynex.storagepeek.api.security.LootSecurityFilter;
 import fr.skynex.storagepeek.api.theme.CustomTheme;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
- * Official StoragePeek API interface for controlling storage previews, sessions, custom containers, custom themes, and player preferences.
+ * Official StoragePeek API interface for controlling storage previews, sessions, custom containers, custom themes, loot security, container taglines, and audio.
  */
 public interface StoragePeekAPI {
 
@@ -132,4 +142,88 @@ public interface StoragePeekAPI {
      * @return True if filter was successfully set
      */
     boolean setSessionFilter(@NotNull Player player, @NotNull String filterName);
+
+    /**
+     * Registers a loot security filter to restrict or mask preview item visibility.
+     *
+     * @param filter Loot security filter implementation
+     */
+    void registerLootSecurityFilter(@NotNull LootSecurityFilter filter);
+
+    /**
+     * Unregisters a loot security filter.
+     *
+     * @param filter Loot security filter implementation
+     */
+    void unregisterLootSecurityFilter(@NotNull LootSecurityFilter filter);
+
+    /**
+     * Searches for nearby containers containing at least one item matching the target material.
+     *
+     * @param center Center location
+     * @param radius Search radius in blocks
+     * @param material Target material
+     * @return List of container blocks
+     */
+    @NotNull
+    List<Block> findNearbyContainers(@NotNull Location center, double radius, @NotNull Material material);
+
+    /**
+     * Summarizes total item quantities stored inside a container block.
+     *
+     * @param block Target container block
+     * @return Map of Material to total amount
+     */
+    @NotNull
+    Map<Material, Integer> getContainerSummary(@NotNull Block block);
+
+    /**
+     * Sets a custom 3D holographic tagline banner displayed above a container's preview display.
+     *
+     * @param block Target block
+     * @param tagline Tagline text (MiniMessage / legacy color code supported)
+     */
+    void setContainerTagline(@NotNull Block block, @Nullable String tagline);
+
+    /**
+     * Sets a custom 3D holographic tagline banner displayed above a furniture entity's preview display.
+     *
+     * @param entity Target entity
+     * @param tagline Tagline text
+     */
+    void setEntityTagline(@NotNull Entity entity, @Nullable String tagline);
+
+    /**
+     * Clears any tagline assigned to a container block.
+     *
+     * @param block Target block
+     */
+    void clearContainerTagline(@NotNull Block block);
+
+    /**
+     * Registers a custom slot hover sound triggered when a player hovers over matching items.
+     *
+     * @param itemMatcher Predicate matching target items
+     * @param sound Sound to play
+     * @param volume Sound volume
+     * @param pitch Sound pitch
+     */
+    void registerSlotHoverSound(@NotNull Predicate<ItemStack> itemMatcher, @NotNull Sound sound, float volume, float pitch);
+
+    /**
+     * Sets the active preview display page for a player.
+     *
+     * @param player Target player
+     * @param page Page index (0-based)
+     * @return True if page was changed successfully
+     */
+    boolean setSessionPage(@NotNull Player player, int page);
+
+    /**
+     * Gets the active preview display page index for a player.
+     *
+     * @param player Target player
+     * @return Page index (0-based) or 0 if no session active
+     */
+    int getSessionPage(@NotNull Player player);
 }
