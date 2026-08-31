@@ -68,7 +68,7 @@ dependencies:
 
 permissions:
   storagepeek.admin:
-    description: Allows administrative access to StoragePeek (reload command).
+    description: Allows administrative access to StoragePeek (reload & purge commands).
     default: op
   storagepeek.toggle:
     description: Allows players to toggle peeking on or off for themselves.
@@ -82,6 +82,40 @@ permissions:
   storagepeek.themes:
     description: Allows players to open the themes menu.
     default: op
+  storagepeek.peek.*:
+    description: Allows players to peek into all container types (wildcard).
+    default: op
+    children:
+      storagepeek.peek: true
+      storagepeek.peek.chest: true
+      storagepeek.peek.trapped_chest: true
+      storagepeek.peek.ender_chest: true
+      storagepeek.peek.barrel: true
+      storagepeek.peek.shulker_box: true
+      storagepeek.peek.furnace: true
+      storagepeek.peek.blast_furnace: true
+      storagepeek.peek.smoker: true
+      storagepeek.peek.brewing_stand: true
+      storagepeek.peek.dispenser: true
+      storagepeek.peek.dropper: true
+      storagepeek.peek.hopper: true
+      storagepeek.peek.crafting_table: true
+      storagepeek.peek.crafter: true
+      storagepeek.peek.chiseled_bookshelf: true
+      storagepeek.peek.decorated_pot: true
+      storagepeek.peek.jukebox: true
+  storagepeek.theme.*:
+    description: Allows players to use all cosmetic themes.
+    default: op
+    children:
+      storagepeek.theme.default: true
+      storagepeek.theme.ender: true
+      storagepeek.theme.rich: true
+      storagepeek.theme.aqua: true
+      storagepeek.theme.nether: true
+      storagepeek.theme.neon: true
+      storagepeek.theme.cyberpunk: true
+      storagepeek.theme.rainbow: true
   storagepeek.bypass.combat:
     description: Allows players to bypass the combat culling check.
     default: op
