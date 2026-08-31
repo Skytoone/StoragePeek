@@ -138,6 +138,31 @@ public class PeekSession {
         }
     }
 
+    public PeekSession(Player player, Block block, Entity entity, Inventory virtualInventory, String virtualTitle) {
+        this.plugin = StoragePeek.getInstance();
+        this.player = player;
+        this.block = block;
+        this.entity = entity;
+        this.handSlot = null;
+        this.inventory = virtualInventory != null ? virtualInventory : findInventory();
+        this.containerCenter = resolveContainerCenter();
+        this.spacing = plugin.getSlotSpacing();
+        this.distance = plugin.getDisplayDistance();
+        this.smoothedDistance = this.distance;
+        this.syncFreq = plugin.getSyncFrequency();
+
+        this.textScale = plugin.getTextScale();
+        this.textYOffset = plugin.getTextYOffset();
+        this.textZOffset = plugin.getTextZOffset();
+
+        this.backgroundMaterial = plugin.getDefaultBackground();
+
+        loadThemeConfig();
+        setupDynamics();
+        this.frozen = true;
+        spawnDisplays();
+    }
+
     public PeekSession(Player player, org.bukkit.inventory.EquipmentSlot handSlot) {
         this.plugin = StoragePeek.getInstance();
         this.player = player;
@@ -835,6 +860,12 @@ public class PeekSession {
             ItemStack hoveredItem = (newTarget < inventory.getSize()) ? inventory.getItem(newTarget) : null;
             if (hoveredItem != null && hoveredItem.getType() != Material.AIR) {
                 hasItem = true;
+            }
+
+            if (newTarget != hoveredSlot) {
+                fr.skynex.storagepeek.api.events.StoragePeekSlotHoverEvent hoverEvent =
+                    new fr.skynex.storagepeek.api.events.StoragePeekSlotHoverEvent(player, block, entity, hoveredItem, hoveredSlot, newTarget);
+                org.bukkit.Bukkit.getPluginManager().callEvent(hoverEvent);
             }
 
             for (ItemEntry entry : itemEntries) {

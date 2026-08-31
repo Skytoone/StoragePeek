@@ -120,9 +120,15 @@ public class QuickTakeListener implements Listener {
             return;
 
         ItemStack chestItem = inv.getItem(slot);
+        PeekSession session = plugin.getActiveSessions().get(player.getUniqueId());
 
         // CASE 1: Targeted slot is empty. Move entire stack into it.
         if (chestItem == null || chestItem.getType() == Material.AIR) {
+            fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent depositEvent =
+                new fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, slot);
+            org.bukkit.Bukkit.getPluginManager().callEvent(depositEvent);
+            if (depositEvent.isCancelled()) return;
+
             inv.setItem(slot, hand.clone());
             player.getInventory().setItemInMainHand(null);
             plugin.playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.8f);
@@ -131,6 +137,11 @@ public class QuickTakeListener implements Listener {
 
         // CASE 2: Items stack. Fill it up.
         if (hand.isSimilar(chestItem)) {
+            fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent depositEvent =
+                new fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, slot);
+            org.bukkit.Bukkit.getPluginManager().callEvent(depositEvent);
+            if (depositEvent.isCancelled()) return;
+
             int max = chestItem.getType().getMaxStackSize();
             int current = chestItem.getAmount();
             if (current >= max) return; // Slot is full
@@ -149,6 +160,11 @@ public class QuickTakeListener implements Listener {
         }
         // CASE 3: Different items. Let's swap them! Extremely handy UX!
         else {
+            fr.skynex.storagepeek.api.events.StoragePeekSwapItemEvent swapEvent =
+                new fr.skynex.storagepeek.api.events.StoragePeekSwapItemEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, chestItem, slot);
+            org.bukkit.Bukkit.getPluginManager().callEvent(swapEvent);
+            if (swapEvent.isCancelled()) return;
+
             ItemStack toChest = hand.clone();
             ItemStack toHand = chestItem.clone();
 

@@ -188,10 +188,59 @@ api.registerSlotHoverSound(
 );
 ```
 
-#### 3D Pagination API
+#### 3D Custom Display Transformations API
 ```java
-// Set active 3D preview page for large inventories
-api.setSessionPage(player, 1);
+// Rotate Netherite Swords in 3D and make them glow purple
+api.registerCustomTransform((player, item, slot) -> {
+    if (item.getType() == Material.NETHERITE_SWORD) {
+        return DisplayTransform.builder()
+            .scale(1.3f)
+            .rotationY(45f)
+            .glowColor(Color.PURPLE)
+            .build();
+    }
+    return null;
+});
+```
+
+#### Container Economic Valuation API
+```java
+// Register item price evaluator and calculate total container value ($)
+api.registerItemValuer(item -> MyShopPlugin.getItemPrice(item));
+double totalValue = api.getContainerTotalValue(chestBlock, player);
+```
+
+#### 3D Beacon Beams & Halos API
+```java
+// Emit a legendary golden beam above a high-value chest
+api.setContainerBeamColor(chestBlock, Color.fromRGB(255, 215, 0));
+```
+
+#### Virtual Backpack & Abstract Container API
+```java
+// Open a 3D StoragePeek preview session for a virtual backpack inventory
+api.openVirtualPeekSession(player, virtualBackpackInventory, "§6Adventurer Backpack");
+```
+
+#### 3D Slot Hover Event
+```java
+@EventHandler
+public void onSlotHover(StoragePeekSlotHoverEvent event) {
+    if (event.getHoveredItem() != null && event.getHoveredItem().getType() == Material.DRAGON_EGG) {
+        event.getPlayer().sendActionBar(Component.text("§d✨ You are gazing upon the Dragon Egg!"));
+    }
+}
+```
+
+#### Quick Deposit & Swap Events
+```java
+@EventHandler
+public void onQuickDeposit(StoragePeekQuickDepositEvent event) {
+    if (isQuestItem(event.getDepositedItem())) {
+        event.setCancelled(true);
+        event.getPlayer().sendMessage("§cQuest items cannot be deposited in public vaults!");
+    }
+}
 ```
 
 #### Listening to API Events

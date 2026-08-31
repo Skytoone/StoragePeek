@@ -11,8 +11,11 @@ import fr.skynex.storagepeek.api.events.StoragePeekToggleEvent;
 import fr.skynex.storagepeek.api.provider.CustomContainerProvider;
 import fr.skynex.storagepeek.api.security.LootSecurityFilter;
 import fr.skynex.storagepeek.api.theme.CustomTheme;
+import fr.skynex.storagepeek.api.transform.CustomDisplayTransform;
+import fr.skynex.storagepeek.api.valuation.ItemValuer;
 import fr.skynex.storagepeek.session.PeekSession;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -45,6 +48,10 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
     private final Map<Object, String> containerTaglines = new ConcurrentHashMap<>();
     private final List<SlotHoverSound> slotHoverSounds = new CopyOnWriteArrayList<>();
     private final Map<UUID, Integer> sessionPages = new ConcurrentHashMap<>();
+
+    private final List<CustomDisplayTransform> customTransforms = new CopyOnWriteArrayList<>();
+    private final List<ItemValuer> itemValuers = new CopyOnWriteArrayList<>();
+    private final Map<Location, Color> containerBeamColors = new ConcurrentHashMap<>();
 
     public StoragePeekAPIImpl(@NotNull StoragePeek plugin) {
         this.plugin = plugin;
@@ -110,6 +117,28 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
         }
 
         PeekSession newSession = new PeekSession(player, block, null);
+        plugin.getActiveSessions().put(player.getUniqueId(), newSession);
+        return true;
+    }
+
+    @Override
+    public boolean openVirtualPeekSession(@NotNull Player player, @NotNull Inventory inventory, @Nullable String title) {
+        if (isStoragePeekDisabled(player)) {
+            return false;
+        }
+
+        StoragePeekOpenEvent openEvent = new StoragePeekOpenEvent(player, null);
+        Bukkit.getPluginManager().callEvent(openEvent);
+        if (openEvent.isCancelled()) {
+            return false;
+        }
+
+        PeekSession session = plugin.getActiveSessions().get(player.getUniqueId());
+        if (session != null) {
+            session.cleanup(true);
+        }
+
+        PeekSession newSession = new PeekSession(player, null, null, inventory, title);
         plugin.getActiveSessions().put(player.getUniqueId(), newSession);
         return true;
     }
@@ -322,6 +351,76 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
 
     public void clearSessionPage(@NotNull UUID playerUUID) {
         sessionPages.remove(playerUUID);
+    }
+
+    @Override
+    public void registerCustomTransform(@NotNull CustomDisplayTransform transform) {
+        if (!customTransforms.contains(transform)) {
+            customTransforms.add(transform);
+        }
+    }
+
+    @Override
+    public void unregisterCustomTransform(@NotNull CustomDisplayTransform transform) {
+        customTransforms.remove(transform);
+    }
+
+    @NotNull
+    public List<CustomDisplayTransform> getCustomTransforms() {
+        return customTransforms;
+    }
+
+    @Override
+    public void registerItemValuer(@NotNull ItemValuer valuer) {
+        if (!itemValuers.contains(valuer)) {
+            itemValuers.add(valuer);
+        }
+    }
+
+    @Override
+    public void unregisterItemValuer(@NotNull ItemValuer valuer) {
+        itemValuers.remove(valuer);
+    }
+
+    @Override
+    public double getContainerTotalValue(@NotNull Block block, @Nullable Player player) {
+        Inventory inv = plugin.getHookManager().getInventory(block, player);
+        if (inv == null) return 0.0;
+
+        double total = 0.0;
+        for (ItemStack item : inv.getContents()) {
+            if (item != null && item.getType() != Material.AIR) {
+                for (ItemValuer valuer : itemValuers) {
+                    try {
+                        double val = valuer.getValue(item);
+                        if (val > 0) {
+                            total += val * item.getAmount();
+                            break;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+        }
+        return total;
+    }
+
+    @Override
+    public void setContainerBeamColor(@NotNull Block block, @Nullable Color color) {
+        if (color == null) {
+            containerBeamColors.remove(block.getLocation());
+        } else {
+            containerBeamColors.put(block.getLocation(), color);
+        }
+    }
+
+    @Override
+    public void clearContainerBeamColor(@NotNull Block block) {
+        containerBeamColors.remove(block.getLocation());
+    }
+
+    @Nullable
+    public Color getContainerBeamColor(@NotNull Block block) {
+        return containerBeamColors.get(block.getLocation());
     }
 
     @Nullable

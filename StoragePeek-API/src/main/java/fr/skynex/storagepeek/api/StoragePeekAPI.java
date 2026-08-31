@@ -4,12 +4,16 @@ import fr.skynex.storagepeek.api.audio.SlotHoverSound;
 import fr.skynex.storagepeek.api.provider.CustomContainerProvider;
 import fr.skynex.storagepeek.api.security.LootSecurityFilter;
 import fr.skynex.storagepeek.api.theme.CustomTheme;
+import fr.skynex.storagepeek.api.transform.CustomDisplayTransform;
+import fr.skynex.storagepeek.api.valuation.ItemValuer;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -21,7 +25,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * Official StoragePeek API interface for controlling storage previews, sessions, custom containers, custom themes, loot security, container taglines, and audio.
+ * Official StoragePeek API interface for controlling storage previews, sessions, custom containers, custom themes, loot security, container taglines, transforms, valuation, and audio.
  */
 public interface StoragePeekAPI {
 
@@ -74,6 +78,16 @@ public interface StoragePeekAPI {
      * @return True if session was successfully opened
      */
     boolean openPeekSession(@NotNull Player player, @NotNull Block block);
+
+    /**
+     * Opens a virtual 3D StoragePeek preview session for a player on an abstract inventory (e.g. Virtual Backpack).
+     *
+     * @param player Target player
+     * @param inventory Virtual inventory
+     * @param title Custom preview title or null
+     * @return True if session was opened
+     */
+    boolean openVirtualPeekSession(@NotNull Player player, @NotNull Inventory inventory, @Nullable String title);
 
     /**
      * Closes any active StoragePeek preview session for a player.
@@ -226,4 +240,56 @@ public interface StoragePeekAPI {
      * @return Page index (0-based) or 0 if no session active
      */
     int getSessionPage(@NotNull Player player);
+
+    /**
+     * Registers a custom 3D display transform evaluator for preview items.
+     *
+     * @param transform Custom display transform evaluator
+     */
+    void registerCustomTransform(@NotNull CustomDisplayTransform transform);
+
+    /**
+     * Unregisters a custom 3D display transform evaluator.
+     *
+     * @param transform Custom display transform evaluator
+     */
+    void unregisterCustomTransform(@NotNull CustomDisplayTransform transform);
+
+    /**
+     * Registers an economic item valuer for pricing container items.
+     *
+     * @param valuer Item valuer implementation
+     */
+    void registerItemValuer(@NotNull ItemValuer valuer);
+
+    /**
+     * Unregisters an economic item valuer.
+     *
+     * @param valuer Item valuer implementation
+     */
+    void unregisterItemValuer(@NotNull ItemValuer valuer);
+
+    /**
+     * Calculates the total economic value of all items stored inside a container.
+     *
+     * @param block Target container block
+     * @param player Viewing player or null
+     * @return Total economic value ($)
+     */
+    double getContainerTotalValue(@NotNull Block block, @Nullable Player player);
+
+    /**
+     * Sets a custom 3D beacon beam glow color emitted above a container block.
+     *
+     * @param block Target block
+     * @param color Beam color or null to clear
+     */
+    void setContainerBeamColor(@NotNull Block block, @Nullable Color color);
+
+    /**
+     * Clears any 3D beacon beam glow assigned to a container block.
+     *
+     * @param block Target block
+     */
+    void clearContainerBeamColor(@NotNull Block block);
 }
