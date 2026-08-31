@@ -8,8 +8,12 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MessageManager {
+    private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
     private final StoragePeek plugin;
     private FileConfiguration dataConfig = null;
     private File configFile = null;
@@ -29,7 +33,7 @@ public class MessageManager {
 
         InputStream defaultStream = this.plugin.getResource("messages.yml");
         if (defaultStream != null) {
-            YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultStream));
+            YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
             this.dataConfig.setDefaults(defaultConfig);
             this.dataConfig.options().copyDefaults(true);
             try {
@@ -59,6 +63,17 @@ public class MessageManager {
     public String getMessage(String path) {
         String msg = getConfig().getString("messages." + path);
         if (msg == null) return "Message not found: messages." + path;
-        return ChatColor.translateAlternateColorCodes('&', msg);
+        return translateHexColorCodes(msg);
+    }
+
+    private String translateHexColorCodes(String message) {
+        Matcher matcher = HEX_PATTERN.matcher(message);
+        StringBuilder builder = new StringBuilder(message.length() + 32);
+        while (matcher.find()) {
+            String group = matcher.group(1);
+            matcher.appendReplacement(builder, ChatColor.of("#" + group).toString());
+        }
+        matcher.appendTail(builder);
+        return ChatColor.translateAlternateColorCodes('&', builder.toString());
     }
 }
