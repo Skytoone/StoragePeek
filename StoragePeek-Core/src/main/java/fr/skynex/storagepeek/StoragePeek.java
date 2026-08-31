@@ -33,7 +33,7 @@ public final class StoragePeek extends JavaPlugin {
     private NamespacedKey displayKey;
     private fr.skynex.storagepeek.listener.PlayerListener playerListener;
     private fr.skynex.storagepeek.visualizer.VisualizerManager visualizerManager;
-    private fr.skynex.storagepeek.visualizer.LootChestGlowTask lootChestGlowTask;
+    private fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask lootChestGlowTaskHandle;
 
     // Configuration values (Cached for performance)
     private double maxDistance;
@@ -138,8 +138,7 @@ public final class StoragePeek extends JavaPlugin {
 
 
 
-        this.lootChestGlowTask = new fr.skynex.storagepeek.visualizer.LootChestGlowTask(this);
-        this.lootChestGlowTask.runTaskTimer(this, 20L, 20L);
+        this.lootChestGlowTaskHandle = fr.skynex.storagepeek.util.FoliaScheduler.runTimer(this, null, () -> new fr.skynex.storagepeek.visualizer.LootChestGlowTask(this).run(), 20L, 20L);
 
         raycastTask = new RaycastTask();
         for (Player player : getServer().getOnlinePlayers()) {
@@ -296,8 +295,8 @@ public final class StoragePeek extends JavaPlugin {
         if (visualizerManager != null) {
             visualizerManager.shutdown();
         }
-        if (lootChestGlowTask != null) {
-            lootChestGlowTask.cancel();
+        if (lootChestGlowTaskHandle != null) {
+            lootChestGlowTaskHandle.cancel();
         }
         activeSessions.values().forEach(session -> session.cleanup(true));
         activeSessions.clear();

@@ -14,7 +14,7 @@ public class VisualizerManager {
 
     private final StoragePeek plugin;
     private final Map<Location, VisualizerSession> activeSessions = new ConcurrentHashMap<>();
-    private BukkitRunnable tickTask;
+    private fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask tickTaskHandle;
 
     public VisualizerManager(StoragePeek plugin) {
         this.plugin = plugin;
@@ -22,47 +22,43 @@ public class VisualizerManager {
     }
 
     private void startTicking() {
-        tickTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                Iterator<Map.Entry<Location, VisualizerSession>> it = activeSessions.entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry<Location, VisualizerSession> entry = it.next();
-                    VisualizerSession session = entry.getValue();
-                    
-                    // Remove distant/offline viewers
-                    session.getViewers().removeIf(uuid -> {
-                        org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(uuid);
-                        if (player == null || !player.isOnline()) {
-                            return true;
-                        }
-                        Location pLoc = player.getLocation();
-                        Location bLoc = entry.getKey();
-                        if (!pLoc.getWorld().equals(bLoc.getWorld()) || pLoc.distanceSquared(bLoc) > 100) {
-                            session.removeViewer(player);
-                            return true;
-                        }
-                        return false;
-                    });
+        tickTaskHandle = fr.skynex.storagepeek.util.FoliaScheduler.runTimer(plugin, null, () -> {
+            Iterator<Map.Entry<Location, VisualizerSession>> it = activeSessions.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<Location, VisualizerSession> entry = it.next();
+                VisualizerSession session = entry.getValue();
+                
+                // Remove distant/offline viewers
+                session.getViewers().removeIf(uuid -> {
+                    org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(uuid);
+                    if (player == null || !player.isOnline()) {
+                        return true;
+                    }
+                    Location pLoc = player.getLocation();
+                    Location bLoc = entry.getKey();
+                    if (!pLoc.getWorld().equals(bLoc.getWorld()) || pLoc.distanceSquared(bLoc) > 100) {
+                        session.removeViewer(player);
+                        return true;
+                    }
+                    return false;
+                });
 
-                    // Cleanup if session is invalid or has no viewers
-                    if (!session.isValid() || session.getViewers().isEmpty()) {
-                        session.cleanup();
-                        it.remove();
-                        continue;
-                    }
-                    
-                    try {
-                        session.update();
-                    } catch (Throwable t) {
-                        plugin.getLogger().warning("[StoragePeek] Error updating visualizer session: " + t.getMessage());
-                        session.cleanup();
-                        it.remove();
-                    }
+                // Cleanup if session is invalid or has no viewers
+                if (!session.isValid() || session.getViewers().isEmpty()) {
+                    session.cleanup();
+                    it.remove();
+                    continue;
+                }
+                
+                try {
+                    session.update();
+                } catch (Throwable t) {
+                    plugin.getLogger().warning("[StoragePeek] Error updating visualizer session: " + t.getMessage());
+                    session.cleanup();
+                    it.remove();
                 }
             }
-        };
-        tickTask.runTaskTimer(plugin, 1L, 2L); // Tick every 2 ticks
+        }, 1L, 2L);
     }
 
     public void addPlayerToSession(Block block, Player player, Inventory inventory) {
@@ -105,8 +101,8 @@ public class VisualizerManager {
     }
 
     public void shutdown() {
-        if (tickTask != null) {
-            tickTask.cancel();
+        if (tickTaskHandle != null) {
+            tickTaskHandle.cancel();
         }
         for (VisualizerSession session : activeSessions.values()) {
             session.cleanup();
