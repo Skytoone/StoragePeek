@@ -22,10 +22,10 @@ import java.util.Arrays;
 public final class StoragePeek extends JavaPlugin {
 
     private static StoragePeek instance;
-    private final Map<UUID, PeekSession> activeSessions = new HashMap<>();
-    private final java.util.Set<UUID> disabledPlayers = new java.util.HashSet<>();
+    private final Map<UUID, PeekSession> activeSessions = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<UUID> disabledPlayers = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private RaycastTask raycastTask;
-    private final Map<UUID, fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask> raycastTasks = new HashMap<>();
+    private final Map<UUID, fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask> raycastTasks = new java.util.concurrent.ConcurrentHashMap<>();
     private ProtectionManager protectionManager;
     private HookManager hookManager;
     private MessageManager messageManager;

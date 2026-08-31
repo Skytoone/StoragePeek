@@ -1,6 +1,7 @@
 package fr.skynex.storagepeek.visualizer;
 
 import fr.skynex.storagepeek.StoragePeek;
+import fr.skynex.storagepeek.util.FoliaScheduler;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -42,7 +43,7 @@ public class VisualizerListener implements Listener {
                 // Jukebox Handling
                 if (block.getType() == Material.JUKEBOX && plugin.getConfig().getBoolean("visualizers.jukebox", true)) {
                     Player player = event.getPlayer();
-                    org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    FoliaScheduler.runLater(plugin, player, () -> {
                         if (block.getType() == Material.JUKEBOX && block.getState() instanceof org.bukkit.block.Jukebox jb) {
                             ItemStack record = jb.getRecord();
                             if (record != null && record.getType() != Material.AIR) {
@@ -57,7 +58,7 @@ public class VisualizerListener implements Listener {
                 // Lectern Handling
                 if (block.getType() == Material.LECTERN && plugin.getConfig().getBoolean("visualizers.lectern", true)) {
                     Player player = event.getPlayer();
-                    org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    FoliaScheduler.runLater(plugin, player, () -> {
                         if (block.getType() == Material.LECTERN && block.getState() instanceof org.bukkit.block.Lectern lectern) {
                             ItemStack book = lectern.getInventory().getItem(0);
                             if (book != null && book.getType() != Material.AIR) {
@@ -72,7 +73,7 @@ public class VisualizerListener implements Listener {
                 // Chiseled Bookshelf Handling
                 if (block.getType() == Material.CHISELED_BOOKSHELF && plugin.getConfig().getBoolean("visualizers.chiseled-bookshelf", true)) {
                     Player player = event.getPlayer();
-                    org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    FoliaScheduler.runLater(plugin, player, () -> {
                         if (block.getType() == Material.CHISELED_BOOKSHELF && block.getState() instanceof org.bukkit.block.ChiseledBookshelf shelf) {
                             boolean hasBooks = false;
                             for (int i = 0; i < shelf.getInventory().getSize(); i++) {

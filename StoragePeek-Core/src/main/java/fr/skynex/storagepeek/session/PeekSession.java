@@ -54,7 +54,7 @@ public class PeekSession {
     private final Map<Integer, String> lastTextCache = new HashMap<>();
 
     // Performance Cache
-    private static final Map<Material, org.bukkit.block.data.BlockData> blockDataCache = new HashMap<>();
+    private static final Map<Material, org.bukkit.block.data.BlockData> blockDataCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     private enum Theme {
         DEFAULT, ENDER, RICH, AQUA, NETHER, NEON, CYBERPUNK, RAINBOW

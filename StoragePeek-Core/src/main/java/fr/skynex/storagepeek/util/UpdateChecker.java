@@ -20,7 +20,7 @@ public class UpdateChecker {
     }
 
     public void getVersion(final Consumer<String> consumer) {
-        Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> {
+        Runnable task = () -> {
             try (InputStream inputStream = URI
                     .create("https://api.spigotmc.org/legacy/update.php?resource=" + this.resourceId).toURL()
                     .openStream();
@@ -31,6 +31,12 @@ public class UpdateChecker {
             } catch (IOException exception) {
                 plugin.getLogger().warning("Could not check for updates: " + exception.getMessage());
             }
-        });
+        };
+
+        if (FoliaScheduler.isFolia()) {
+            Bukkit.getAsyncScheduler().runNow(this.plugin, t -> task.run());
+        } else {
+            Bukkit.getScheduler().runTaskAsynchronously(this.plugin, task);
+        }
     }
 }

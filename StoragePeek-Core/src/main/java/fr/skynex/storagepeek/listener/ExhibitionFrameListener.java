@@ -37,7 +37,7 @@ public class ExhibitionFrameListener implements Listener {
 
     private final NamespacedKey itemKey;
     private final NamespacedKey activeKey;
-    private final Map<UUID, ItemDisplay> spawnedDisplays = new HashMap<>();
+    private final Map<UUID, ItemDisplay> spawnedDisplays = new java.util.concurrent.ConcurrentHashMap<>();
     private FoliaScheduler.RepeatingTask tickTask;
 
     public ExhibitionFrameListener(StoragePeek plugin) {
@@ -48,7 +48,7 @@ public class ExhibitionFrameListener implements Listener {
         this.tickTask = FoliaScheduler.runTimer(plugin, null, this::tickRotations, 1L, 1L);
 
         // Load displays in already loaded chunks
-        Bukkit.getScheduler().runTaskLater(plugin, this::loadAllActiveFrames, 5L);
+        FoliaScheduler.runLaterGlobal(plugin, this::loadAllActiveFrames, 5L);
     }
 
     private void tickRotations() {

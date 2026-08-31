@@ -31,11 +31,9 @@ public class RaycastTask extends BukkitRunnable {
         float yaw, pitch;
     }
 
-    private final Map<UUID, PlayerState> lastStates = new HashMap<>();
-    private final Map<UUID, Long> lastPermissionWarning = new HashMap<>();
+    private final Map<UUID, PlayerState> lastStates = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastPermissionWarning = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean entitiesEnabled;
-    private final org.bukkit.Location reusableLoc = new org.bukkit.Location(null, 0, 0, 0);
-    private final org.bukkit.util.Vector reusableVec = new org.bukkit.util.Vector();
 
     // Combat Hooks Cache
     private boolean combatLogXChecked = false;
@@ -222,29 +220,21 @@ public class RaycastTask extends BukkitRunnable {
         state.yaw = curYaw;
         state.pitch = curPitch;
 
-        // Allocation-free eye location lookup
-        player.getLocation(reusableLoc);
-        reusableLoc.setY(reusableLoc.getY() + player.getEyeHeight());
-
-        double yawRad = Math.toRadians(curYaw);
-        double pitchRad = Math.toRadians(curPitch);
-        double cosPitch = Math.cos(pitchRad);
-        reusableVec.setX(-Math.sin(yawRad) * cosPitch);
-        reusableVec.setY(-Math.sin(pitchRad));
-        reusableVec.setZ(Math.cos(yawRad) * cosPitch);
+        Location eyeLoc = player.getEyeLocation();
+        org.bukkit.util.Vector dir = eyeLoc.getDirection();
 
         RayTraceResult result;
         if (entitiesEnabled && !allowedEntities.isEmpty()) {
             result = player.getWorld().rayTrace(
-                    reusableLoc,
-                    reusableVec,
+                    eyeLoc,
+                    dir,
                     maxDist,
                     FluidCollisionMode.NEVER,
                     true,
                     0.1,
                     ent -> allowedEntities.contains(ent.getType()) && ent != player);
         } else {
-            result = player.getWorld().rayTraceBlocks(reusableLoc, reusableVec, maxDist, FluidCollisionMode.NEVER, true);
+            result = player.getWorld().rayTraceBlocks(eyeLoc, dir, maxDist, FluidCollisionMode.NEVER, true);
         }
 
         Block targetBlock = result != null ? result.getHitBlock() : null;
@@ -594,9 +584,9 @@ public class RaycastTask extends BukkitRunnable {
         return allowedEntities;
     }
 
-    private final Map<UUID, Location> compassTargets = new HashMap<>();
-    private final Map<UUID, Integer> compassCooldowns = new HashMap<>();
-    private final Map<UUID, org.bukkit.entity.ItemDisplay> compassArrows = new HashMap<>();
+    private final Map<UUID, Location> compassTargets = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Integer> compassCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, org.bukkit.entity.ItemDisplay> compassArrows = new java.util.concurrent.ConcurrentHashMap<>();
 
     public void tickLootTrackerCompass(Player player) {
         UUID uuid = player.getUniqueId();
