@@ -19,11 +19,23 @@ permissions:
       storagepeek.purge: true
       storagepeek.find: true
       storagepeek.deposit: true
+      storagepeek.label: true
+      storagepeek.createtheme: true
+      storagepeek.stats: true
       storagepeek.toggle: true
       storagepeek.themes: true
       storagepeek.filter: true
       storagepeek.bypass.combat: true
       storagepeek.bypass.protection: true
+  storagepeek.label:
+    description: Allows attaching persistent 3D labels to container blocks (/storagepeek label).
+    default: op
+  storagepeek.createtheme:
+    description: Allows creating new custom 3D themes in game (/storagepeek createtheme).
+    default: op
+  storagepeek.stats:
+    description: Allows viewing 3D base storage statistics dashboard (/storagepeek stats).
+    default: op
   storagepeek.find:
     description: Allows searching for items and pointing 3D compass (/storagepeek find).
     default: op

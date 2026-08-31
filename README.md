@@ -275,6 +275,9 @@ public void onRenderItem(StoragePeekRenderItemEvent event) {
 | `/storagepeek filter <type>` | `storagepeek.filter` | `storagepeek.admin` (op) | Applies item filter (`ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT`) |
 | `/storagepeek find <item>` | `storagepeek.find` | `storagepeek.admin` (op) | Points floating 3D compass arrow to nearest container holding item |
 | `/storagepeek deposit [r]` | `storagepeek.deposit` | `storagepeek.admin` (op) | Auto-deposits matching inventory items into nearby containers |
+| `/storagepeek label <text>` | `storagepeek.label` | `storagepeek.admin` (op) | Attaches persistent 3D holographic label above container |
+| `/storagepeek createtheme <name>` | `storagepeek.createtheme` | `storagepeek.admin` (op) | Creates new 3D visual theme using held block |
+| `/storagepeek stats [r]` | `storagepeek.stats` | `storagepeek.admin` (op) | Spawns floating 3D base storage statistics dashboard |
 | *(Bypass Combat)* | `storagepeek.bypass.combat` | `storagepeek.admin` (op) | Bypasses PvP combat-culling restriction |
 | *(Bypass Protection)* | `storagepeek.bypass.protection` | `storagepeek.admin` (op) | Bypasses region claim protection checks |
 

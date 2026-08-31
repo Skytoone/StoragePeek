@@ -327,11 +327,92 @@ public final class StoragePeek extends JavaPlugin {
                     player.sendMessage("§e[StoragePeek] No matching container slots found nearby for items in your inventory.");
                 }
                 return true;
+            } else if (args.length > 0 && (args[0].equalsIgnoreCase("label") || args[0].equalsIgnoreCase("unlabel"))) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(messageManager.getMessage("only-players"));
+                    return true;
+                }
+                if (!player.hasPermission("storagepeek.label") && !player.hasPermission("storagepeek.admin")) {
+                    player.sendMessage(messageManager.getMessage("no-permission"));
+                    return true;
+                }
+                org.bukkit.block.Block targetBlock = player.getTargetBlockExact(5);
+                if (targetBlock == null || (!getHookManager().isCustomContainer(targetBlock) && !getRaycastTask().getAllowedBlocks().contains(targetBlock.getType()))) {
+                    player.sendMessage("§cYou must be looking at a valid container block within 5 blocks!");
+                    return true;
+                }
+
+                if (!(targetBlock.getState() instanceof org.bukkit.block.TileState tileState)) {
+                    player.sendMessage("§cThis block type cannot store persistent labels.");
+                    return true;
+                }
+
+                NamespacedKey labelKey = new NamespacedKey(this, "custom_label");
+                if (args[0].equalsIgnoreCase("unlabel") || args.length == 1) {
+                    tileState.getPersistentDataContainer().remove(labelKey);
+                    tileState.update();
+                    player.sendMessage("§a[StoragePeek] Removed 3D label from container!");
+                    playConfigSound(player, "sort", Sound.BLOCK_CHEST_CLOSE, 0.8f, 1.2f);
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 1; i < args.length; i++) {
+                        sb.append(args[i]).append(" ");
+                    }
+                    String labelText = sb.toString().trim().replace("&", "§");
+                    tileState.getPersistentDataContainer().set(labelKey, org.bukkit.persistence.PersistentDataType.STRING, labelText);
+                    tileState.update();
+                    player.sendMessage("§a[StoragePeek] Set 3D container label to: §f" + labelText);
+                    playConfigSound(player, "sort", Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 1.3f);
+                }
+                return true;
+            } else if (args.length > 1 && args[0].equalsIgnoreCase("createtheme")) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(messageManager.getMessage("only-players"));
+                    return true;
+                }
+                if (!player.hasPermission("storagepeek.createtheme") && !player.hasPermission("storagepeek.admin")) {
+                    player.sendMessage(messageManager.getMessage("no-permission"));
+                    return true;
+                }
+                String themeName = args[1].toLowerCase().trim();
+                org.bukkit.inventory.ItemStack mainHand = player.getInventory().getItemInMainHand();
+                Material bgMat = (mainHand != null && mainHand.getType() != Material.AIR) ? mainHand.getType() : Material.BLACK_STAINED_GLASS;
+
+                getConfig().set("themes.custom." + themeName + ".background-material", bgMat.name());
+                getConfig().set("themes.custom." + themeName + ".particle-type", "END_ROD");
+                getConfig().set("themes.custom." + themeName + ".glow-color", "255,215,0");
+                saveConfig();
+                loadConfigurationCache();
+
+                player.sendMessage("§a[StoragePeek] Created custom 3D theme '§e" + themeName + "§a' using background block §f" + bgMat.name() + "§a!");
+                playConfigSound(player, "sort", Sound.UI_STONECUTTER_TAKE_RESULT, 0.8f, 1.2f);
+                return true;
+            } else if (args.length > 0 && args[0].equalsIgnoreCase("stats")) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(messageManager.getMessage("only-players"));
+                    return true;
+                }
+                if (!player.hasPermission("storagepeek.stats") && !player.hasPermission("storagepeek.admin")) {
+                    player.sendMessage(messageManager.getMessage("no-permission"));
+                    return true;
+                }
+                int radius = 32;
+                if (args.length > 1) {
+                    try {
+                        radius = Math.min(64, Math.max(1, Integer.parseInt(args[1])));
+                    } catch (NumberFormatException ignored) {}
+                }
+
+                displayBaseStatsHologram(player, radius);
+                return true;
             }
             sender.sendMessage(messageManager.getMessage("usage-reload"));
             sender.sendMessage(messageManager.getMessage("usage-toggle"));
             sender.sendMessage(messageManager.getMessage("usage-themes"));
             sender.sendMessage(messageManager.getMessage("usage-filter"));
+            sender.sendMessage("§e/storagepeek label <text> §7- Attach persistent 3D label to targeted container.");
+            sender.sendMessage("§e/storagepeek createtheme <name> §7- Create new 3D theme using held block.");
+            sender.sendMessage("§e/storagepeek stats [radius] §7- Display 3D base storage statistics dashboard.");
             sender.sendMessage("§e/storagepeek find <item> §7- Point compass arrow to nearby chest containing item.");
             sender.sendMessage("§e/storagepeek deposit [radius] §7- Auto-deposit matching items into nearby chests.");
             sender.sendMessage("§e/storagepeek purge §7- Purge orphaned display entities.");
@@ -843,5 +924,86 @@ public final class StoragePeek extends JavaPlugin {
             }
         }
         return totalDeposited;
+    }
+
+    private void displayBaseStatsHologram(Player player, int radius) {
+        Location pLoc = player.getLocation();
+        if (pLoc.getWorld() == null) return;
+
+        int bx = pLoc.getBlockX();
+        int by = pLoc.getBlockY();
+        int bz = pLoc.getBlockZ();
+
+        int totalChests = 0;
+        int totalSlotsUsed = 0;
+        int totalSlotsCapacity = 0;
+        int totalItemCount = 0;
+        double totalEcoValue = 0.0;
+        Material mostValuableMaterial = Material.AIR;
+        double highestItemVal = 0.0;
+
+        fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
+            (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
+
+        for (int x = bx - radius; x <= bx + radius; x++) {
+            for (int y = Math.max(pLoc.getWorld().getMinHeight(), by - 12); y <= Math.min(pLoc.getWorld().getMaxHeight(), by + 12); y++) {
+                for (int z = bz - radius; z <= bz + radius; z++) {
+                    org.bukkit.block.Block block = pLoc.getWorld().getBlockAt(x, y, z);
+                    if (getHookManager().isCustomContainer(block) || getRaycastTask().getAllowedBlocks().contains(block.getType())) {
+                        org.bukkit.inventory.Inventory inv = getHookManager().getInventory(block, player);
+                        if (inv != null) {
+                            totalChests++;
+                            totalSlotsCapacity += inv.getSize();
+                            double chestValue = apiImpl.getContainerTotalValue(block, player);
+                            totalEcoValue += chestValue;
+
+                            for (org.bukkit.inventory.ItemStack item : inv.getContents()) {
+                                if (item != null && item.getType() != Material.AIR) {
+                                    totalSlotsUsed++;
+                                    totalItemCount += item.getAmount();
+                                    double val = apiImpl.getItemValue(item);
+                                    if (val > highestItemVal) {
+                                        highestItemVal = val;
+                                        mostValuableMaterial = item.getType();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        int fillPercent = (totalSlotsCapacity > 0) ? (totalSlotsUsed * 100 / totalSlotsCapacity) : 0;
+        String mostValuableName = mostValuableMaterial == Material.AIR ? "None" : mostValuableMaterial.name();
+
+        String statsText = String.format(
+            "§6§l📊 BASE STORAGE STATISTICS (Radius: %dm)\n" +
+            "§7• 📦 Total Containers: §e%d\n" +
+            "§7• 💎 Total Items Stored: §a%d §7(%d%% Capacity)\n" +
+            "§7• 👑 Top Material: §b%s\n" +
+            "§7• 🪙 Base Total Economic Value: §a$%.2f",
+            radius, totalChests, totalItemCount, fillPercent, mostValuableName, totalEcoValue
+        );
+
+        Location spawnLoc = player.getEyeLocation().add(player.getEyeLocation().getDirection().multiply(2.2));
+        org.bukkit.entity.TextDisplay statsHolo = spawnLoc.getWorld().spawn(spawnLoc, org.bukkit.entity.TextDisplay.class, ent -> {
+            tagDisplayEntity(ent);
+            ent.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            ent.setDefaultBackground(true);
+            ent.setBackgroundColor(org.bukkit.Color.fromARGB(200, 15, 15, 25));
+            ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(statsText));
+            ent.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+        });
+
+        player.showEntity(this, statsHolo);
+        spawnLoc.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, spawnLoc, 20, 0.5, 0.5, 0.5, 0.05);
+        playConfigSound(player, "sort", Sound.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, 0.8f, 1.2f);
+
+        fr.skynex.storagepeek.util.FoliaScheduler.runLater(this, player, () -> {
+            if (statsHolo.isValid()) {
+                statsHolo.remove();
+            }
+        }, 300L); // 15 seconds
     }
 }

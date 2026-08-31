@@ -312,6 +312,12 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
         if (entity != null && containerTaglines.containsKey(entity.getUniqueId())) {
             return containerTaglines.get(entity.getUniqueId());
         }
+        if (block != null && block.getState() instanceof org.bukkit.block.TileState tileState) {
+            org.bukkit.NamespacedKey labelKey = new org.bukkit.NamespacedKey(plugin, "custom_label");
+            if (tileState.getPersistentDataContainer().has(labelKey, org.bukkit.persistence.PersistentDataType.STRING)) {
+                return tileState.getPersistentDataContainer().get(labelKey, org.bukkit.persistence.PersistentDataType.STRING);
+            }
+        }
         return null;
     }
 
@@ -402,6 +408,17 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
             }
         }
         return total;
+    }
+
+    public double getItemValue(@NotNull ItemStack item) {
+        if (item.getType() == Material.AIR) return 0.0;
+        for (ItemValuer valuer : itemValuers) {
+            try {
+                double val = valuer.getValue(item);
+                if (val > 0) return val;
+            } catch (Throwable ignored) {}
+        }
+        return 0.0;
     }
 
     @Override
