@@ -1,0 +1,275 @@
+# StoragePeek Configuration
+
+# --- General Settings ---
+
+# Maximum distance to look at a container
+max-distance: 5.0
+
+# How far the HUD follows the player's eyes
+display-distance: 1.8
+
+# Raycast frequency (how often we check what the player is looking at, in ticks)
+raycast-frequency: 2
+
+# Automatic update checker
+check-updates: true
+
+# Hide the preview HUD if the container is empty
+hide-when-empty: false
+
+# Automatically enable StoragePeek for players when they join the server (resets toggle state)
+auto-enable-on-join: false
+
+
+# --- Interaction Settings ---
+
+# Focus Mode: If true, holding SHIFT freezes the HUD in place, allowing you to aim at items.
+focus-mode: true
+
+
+# --- Visual HUD Settings ---
+
+# Spacing between item slots in the 3D grid
+slot-spacing: 0.18
+
+# The size of the quantity labels (0.2 is small/clean)
+text-scale: 0.2
+
+# Vertical offset for the text (negative is lower)
+text-y-offset: -0.05
+
+# Depth offset (how far in front of the item the text is)
+text-z-offset: 0.08
+
+# Default background panel material (BLACK_STAINED_GLASS, GRAY_STAINED_GLASS, etc.)
+default-background: BLACK_STAINED_GLASS
+
+# Material type for Shulker Boxes (STAINED_GLASS, CONCRETE, TERRACOTTA, WOOL)
+shulker-background-type: STAINED_GLASS
+
+# Custom overrides for specific container types
+container-backgrounds:
+  CHEST: BLACK_STAINED_GLASS
+  TRAPPED_CHEST: BLACK_STAINED_GLASS
+  ENDER_CHEST: OBSIDIAN
+  BARREL: GRAY_STAINED_GLASS
+  HOPPER: GRAY_STAINED_GLASS
+  DISPENSER: GRAY_STAINED_GLASS
+  DROPPER: GRAY_STAINED_GLASS
+  FURNACE: GRAY_STAINED_GLASS
+  BLAST_FURNACE: GRAY_STAINED_GLASS
+  SMOKER: GRAY_STAINED_GLASS
+  BREWING_STAND: GRAY_STAINED_GLASS
+  MINECART_CHEST: BLACK_STAINED_GLASS
+  MINECART_HOPPER: GRAY_STAINED_GLASS
+  CRAFTER: GRAY_STAINED_GLASS
+  CHISELED_BOOKSHELF: GRAY_STAINED_GLASS
+  DECORATED_POT: GRAY_STAINED_GLASS
+  JUKEBOX: GRAY_STAINED_GLASS
+
+
+# --- Premium Hologram Visuals ---
+holograms:
+  # Smoothly animate HUD scale-up on spawn and scale-down on look-away
+  animations-enabled: true
+  
+  # Smoothly open/close physical container lids (client-side only, no physical changes)
+  container-animations: true
+  
+  # Enable the hover item nameplate above the slot in Focus Mode
+  hover-nameplate-enabled: true
+  
+  # Text scale for the hover label nameplate
+  hover-nameplate-scale: 0.18
+  
+  # Background color of the hover nameplate in ARGB format (Alpha, Red, Green, Blue)
+  hover-nameplate-bg-color: "160,20,20,20"
+
+  # Material of the hover highlight slot backplate (ex: WHITE_STAINED_GLASS, LIGHT_BLUE_STAINED_GLASS)
+  hover-highlight-material: WHITE_STAINED_GLASS
+
+  # Teleport duration in ticks for client-side interpolation of HUD movement (1-5, default 3)
+  # A higher value makes the movement smoother/silky but adds a minor drag-behind delay.
+  teleport-duration: 3
+
+  # Distance smoothing factor (0.05 to 1.0, default 0.15)
+  # A lower value makes the HUD zoom in/out towards container collision more smoothly.
+  distance-smoothing: 0.15
+
+  # Display the item quantity labels on the HUD
+  quantity-labels-enabled: true
+
+  # Display the container info hologram text below the preview (e.g. "Chest - 23 / 54")
+  fill-indicator-enabled: true
+
+  # Display the durability bars for damaged tools/weapons/armor on the HUD
+  durability-bars-enabled: true
+
+  # Durability color/material settings for different durability percentages (high/medium/low)
+  durability-colors:
+    high: LIME_CONCRETE
+    medium: YELLOW_CONCRETE
+    low: RED_CONCRETE
+
+
+# --- Inventory Settings ---
+
+# Update frequency for inventory synchronization (in ticks, 5 is fast)
+sync-frequency: 5
+
+# Support for Entities (Minecarts, Chested Animals, etc.)
+enable-entities: true
+allowed-entities:
+  - MINECART_CHEST
+  - MINECART_HOPPER
+  # You can also add chested animals:
+  # - DONKEY
+  # - MULE
+  # - LLAMA
+  # - TRADER_LLAMA
+
+# Allowed block materials
+containers:
+  - CHEST
+  - TRAPPED_CHEST
+  - ENDER_CHEST
+  - BARREL
+  - SHULKER_BOX
+  - WHITE_SHULKER_BOX
+  - ORANGE_SHULKER_BOX
+  - MAGENTA_SHULKER_BOX
+  - LIGHT_BLUE_SHULKER_BOX
+  - YELLOW_SHULKER_BOX
+  - LIME_SHULKER_BOX
+  - PINK_SHULKER_BOX
+  - GRAY_SHULKER_BOX
+  - LIGHT_GRAY_SHULKER_BOX
+  - CYAN_SHULKER_BOX
+  - PURPLE_SHULKER_BOX
+  - BLUE_SHULKER_BOX
+  - BROWN_SHULKER_BOX
+  - GREEN_SHULKER_BOX
+  - RED_SHULKER_BOX
+  - BLACK_SHULKER_BOX
+  - FURNACE
+  - BLAST_FURNACE
+  - SMOKER
+  - BREWING_STAND
+  - DISPENSER
+  - DROPPER
+  - HOPPER
+  - CRAFTING_TABLE
+  - CRAFTER
+  - CHISELED_BOOKSHELF
+  - DECORATED_POT
+  - JUKEBOX
+
+# --- Theme Settings ---
+themes:
+  enabled: true
+  ender:
+    enabled: true
+    background: OBSIDIAN
+    particles: true
+    # The Spigot Particle type spawned for this theme (e.g. PORTAL, REVERSE_PORTAL, etc.)
+    particle-type: PORTAL
+    # Number of particles spawned per tick
+    particle-count: 3
+  rich:
+    enabled: true
+    background: GOLD_BLOCK
+    particles: true
+    threshold: 32
+    # The Spigot Particle type spawned for this theme (e.g. WAX_OFF, GLOW, etc.)
+    particle-type: WAX_OFF
+    # Number of particles spawned per tick
+    particle-count: 1
+    items:
+      - GOLD_INGOT
+      - GOLD_BLOCK
+      - DIAMOND
+      - DIAMOND_BLOCK
+      - NETHERITE_INGOT
+      - NETHERITE_BLOCK
+      - EMERALD
+      - EMERALD_BLOCK
+      - TOTEM_OF_UNDYING
+      - ENCHANTED_GOLDEN_APPLE
+
+# --- Sound Settings ---
+sounds:
+  enabled: true
+  hover:
+    type: BLOCK_LEVER_CLICK
+    volume: 0.2
+    pitch: 1.5
+  take:
+    type: ENTITY_ITEM_PICKUP
+    volume: 0.5
+    pitch: 1.2
+  deposit:
+    type: ENTITY_ITEM_PICKUP
+    volume: 0.5
+    pitch: 0.8
+  sort:
+    type: ITEM_ARMOR_EQUIP_GENERIC
+    volume: 0.5
+    pitch: 1.0
+
+# --- Combat Culling ---
+combat-culling:
+  enabled: true
+  # Block peeking if player was recently in combat with another player
+  pvp-cooldown-seconds: 10
+  # Automatically hook into common combat tag plugins (CombatLogX, CombatTagPlus, PvPManager, DeluxeCombat)
+  hook-plugins: true
+
+# --- Protection Hooks ---
+# Control whether StoragePeek checks region/land protection plugins before allowing players to preview containers.
+protection-hooks:
+  # Master toggle: Set to false to allow previewing containers everywhere regardless of claim protection plugins
+  enabled: true
+  # Individual protection plugin integrations (set to false to ignore specific hooks)
+  worldguard: true
+  superiorskyblock2: true
+  lands: true
+  griefprevention: true
+  bentobox: true
+  towny: true
+  lwc: true
+  residence: true
+  griefdefender: true
+  plotsquared: true
+
+# --- World Blacklist ---
+# List of world names where container peeking is completely disabled (case-insensitive)
+disabled-worlds:
+  - pvp_world
+  - arena_world
+
+# --- Quick Action Button Mapping ---
+# Configure which mouse click maps to TAKE or DEPOSIT actions (while sneaking)
+# Default: Left-Click = TAKE, Right-Click = DEPOSIT
+quick-actions:
+  left-click: TAKE
+  right-click: DEPOSIT
+
+# --- Interaction Visualizers ---
+# Real-time 3D item and progress rendering for utility blocks
+visualizers:
+  enabled: true
+  # If true, all players near the block see the 3D items. If false, only the player interacting sees them.
+  visible-to-all: true
+  # Enable/disable visualizers for specific block types
+  crafting-table: true
+  furnace: true
+  brewing-stand: true
+  anvil: true
+  enchanting-table: true
+  jukebox: true
+  lectern: true
+  loot-chest-glow: true
+  hopper-transfer: true
+  fill-indicator: true
+  chiseled-bookshelf: true
+

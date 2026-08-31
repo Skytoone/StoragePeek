@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>fr.skynex</groupId>
+        <artifactId>StoragePeek-Parent</artifactId>
+        <version>1.2.0</version>
+    </parent>
+
+    <artifactId>StoragePeek-Core</artifactId>
+    <name>StoragePeek-Core</name>
+    <description>Core plugin implementation of StoragePeek for Spigot/Paper/Folia servers.</description>
+
+    <dependencies>
+        <!-- StoragePeek API Module -->
+        <dependency>
+            <groupId>fr.skynex</groupId>
+            <artifactId>StoragePeek-API</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Paper API (Must be FIRST for priority) -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- WorldGuard API -->
+        <dependency>
+            <groupId>com.sk89q.worldguard</groupId>
+            <artifactId>worldguard-bukkit</artifactId>
+            <version>7.0.0</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bukkit</groupId>
+                    <artifactId>bukkit</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.sk89q.worldedit</groupId>
+            <artifactId>worldedit-bukkit</artifactId>
+            <version>7.2.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Lands API via JitPack -->
+        <dependency>
+            <groupId>com.github.Angeschossen</groupId>
+            <artifactId>LandsAPI</artifactId>
+            <version>7.25.4</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- GriefPrevention -->
+        <dependency>
+            <groupId>com.github.TechFortress</groupId>
+            <artifactId>GriefPrevention</artifactId>
+            <version>16.18.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- BentoBox (Skyblock) -->
+        <dependency>
+            <groupId>world.bentobox</groupId>
+            <artifactId>bentobox</artifactId>
+            <version>1.24.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SuperiorSkyblock2 API -->
+        <dependency>
+            <groupId>com.bgsoftware</groupId>
+            <artifactId>SuperiorSkyblockAPI</artifactId>
+            <version>2026.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Towny -->
+        <dependency>
+            <groupId>com.palmergames.bukkit.towny</groupId>
+            <artifactId>towny</artifactId>
+            <version>0.100.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- LWC (Entity/Block Protection) -->
+        <dependency>
+            <groupId>com.griefcraft</groupId>
+            <artifactId>lwc</artifactId>
+            <version>2.4.2</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bukkit</groupId>
+                    <artifactId>bukkit</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Oraxen API -->
+        <dependency>
+            <groupId>com.github.oraxen</groupId>
+            <artifactId>oraxen</artifactId>
+            <version>1.171.0</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.jeff_media</groupId>
+                    <artifactId>MorePersistentDataTypes</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.th0rgal</groupId>
+                    <artifactId>protectionlib</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>dev.triumphteam</groupId>
+                    <artifactId>triumph-gui</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.ticxo</groupId>
+                    <artifactId>PlayerAnimator</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Nexo API -->
+        <dependency>
+            <groupId>com.nexomc</groupId>
+            <artifactId>nexo</artifactId>
+            <version>1.23</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ItemsAdder API -->
+        <dependency>
+            <groupId>com.github.LoneDev6</groupId>
+            <artifactId>ItemsAdder-API</artifactId>
+            <version>3.6.3-beta-14</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Residence -->
+        <dependency>
+            <groupId>com.github.Zrips</groupId>
+            <artifactId>Residence</artifactId>
+            <version>6.0.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.20.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- CraftEngine API -->
+        <dependency>
+            <groupId>net.momirealms</groupId>
+            <artifactId>craft-engine-bukkit</artifactId>
+            <version>26.5</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.momirealms</groupId>
+            <artifactId>craft-engine-core</artifactId>
+            <version>26.5</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- bStats -->
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>3.0.2</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>StoragePeek</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <artifactSet>
+                                <includes>
+                                    <include>fr.skynex:StoragePeek-API</include>
+                                    <include>org.bstats:bstats-bukkit</include>
+                                    <include>org.bstats:bstats-base</include>
+                                </includes>
+                                </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.bstats</pattern>
+                                    <shadedPattern>fr.skynex.storagepeek.metrics</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <outputFile>${project.parent.basedir}/target/StoragePeek-${project.version}.jar</outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

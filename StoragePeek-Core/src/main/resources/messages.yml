@@ -1,0 +1,25 @@
+# StoragePeek Messages Configuration
+# Use '&' for color codes.
+
+messages:
+  # Command messages
+  no-permission: "&cYou don't have permission."
+  only-players: "&cThis command can only be executed by players."
+  reload-success: "&aStoragePeek configuration reloaded!"
+  usage-reload: "&7Use &f/storagepeek reload &7to reload the config."
+  usage-toggle: "&7Use &f/storagepeek toggle &7to enable/disable peeking."
+  toggle-enabled: "&aStoragePeek has been enabled!"
+  toggle-disabled: "&cStoragePeek has been disabled!"
+  sorted-success: "&aContainer sorted!"
+  smart-deposit-success: "&aSmart deposit complete!"
+  container-no-permission: "&cYou don't have permission to peek this container type."
+  container-no-protection-access: "&cYou don't have permission to peek containers in this protected area."
+  usage-themes: "&7Use &f/storagepeek themes &7to open the custom themes menu."
+  theme-updated: "&aTheme updated to: &e{theme}"
+  theme-no-permission: "&cYou don't have permission to unlock the {theme} theme!"
+  usage-filter: "&7Use &f/storagepeek filter <all|riches|food|equipment> &7to filter items."
+  filter-updated: "&aHUD filter updated to: &e{filter}"
+
+  # Hologram formats
+  # {amount} is replaced by the item quantity. Use '&f' for white text.
+  item-quantity-format: "&f{amount}"

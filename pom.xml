@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>fr.skynex</groupId>
+    <artifactId>StoragePeek-Parent</artifactId>
+    <version>1.2.0</version>
+    <packaging>pom</packaging>
+
+    <name>StoragePeek-Parent</name>
+    <description>Parent POM for StoragePeek container preview plugin and API.</description>
+
+    <modules>
+        <module>StoragePeek-API</module>
+        <module>StoragePeek-Core</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/repository/public/</url>
+        </repository>
+        <repository>
+            <id>jitpack</id>
+            <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>sk89q-repo</id>
+            <url>https://maven.enginehub.org/repo/</url>
+        </repository>
+        <repository>
+            <id>bg-software-repo</id>
+            <url>https://repo.bg-software.com/repository/api/</url>
+        </repository>
+        <repository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>towny-repo</id>
+            <url>https://repo.glaremasters.me/repository/towny/</url>
+        </repository>
+        <repository>
+            <id>nexomc-releases</id>
+            <url>https://repo.nexomc.com/releases</url>
+        </repository>
+        <repository>
+            <id>oraxen-repo</id>
+            <url>https://repo.oraxen.com/releases</url>
+        </repository>
+        <repository>
+            <id>lumine-repo</id>
+            <url>https://mvn.lumine.io/repository/public/</url>
+        </repository>
+        <repository>
+            <id>triumphteam-repo</id>
+            <url>https://repo.triumphteam.dev/repository/maven-releases/</url>
+        </repository>
+        <repository>
+            <id>triumphteam-snapshots</id>
+            <url>https://repo.triumphteam.dev/snapshots</url>
+        </repository>
+        <repository>
+            <id>codemc-releases</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>momirealms-repo</id>
+            <url>https://repo.momirealms.net/releases/</url>
+        </repository>
+    </repositories>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
