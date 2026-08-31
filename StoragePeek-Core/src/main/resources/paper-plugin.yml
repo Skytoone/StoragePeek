@@ -68,10 +68,24 @@ dependencies:
 
 permissions:
   storagepeek.admin:
-    description: Allows administrative access to StoragePeek (reload & purge commands).
+    description: Allows full administrative access to StoragePeek.
+    default: op
+    children:
+      storagepeek.reload: true
+      storagepeek.purge: true
+      storagepeek.toggle: true
+      storagepeek.themes: true
+      storagepeek.filter: true
+      storagepeek.bypass.combat: true
+      storagepeek.bypass.protection: true
+  storagepeek.reload:
+    description: Allows reloading plugin configuration (/storagepeek reload).
+    default: op
+  storagepeek.purge:
+    description: Allows purging orphaned display entities (/storagepeek purge).
     default: op
   storagepeek.toggle:
-    description: Allows players to toggle peeking on or off for themselves.
+    description: Allows players to toggle peeking on or off for themselves (/storagepeek toggle).
     default: op
   storagepeek.peek:
     description: Allows players to peek into all allowed containers.
@@ -80,7 +94,7 @@ permissions:
     description: Allows players to use the /storagepeek filter command.
     default: op
   storagepeek.themes:
-    description: Allows players to open the themes menu.
+    description: Allows players to open the themes menu (/storagepeek themes).
     default: op
   storagepeek.peek.*:
     description: Allows players to peek into all container types (wildcard).

@@ -155,7 +155,7 @@ public final class StoragePeek extends JavaPlugin {
         getServer().getPluginManager().registerEvents(exhibitionFrameListener, this);
         getCommand("storagepeek").setExecutor((sender, command, label, args) -> {
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-                if (!sender.hasPermission("storagepeek.admin")) {
+                if (!sender.hasPermission("storagepeek.reload") && !sender.hasPermission("storagepeek.admin")) {
                     sender.sendMessage(messageManager.getMessage("no-permission"));
                     return true;
                 }
@@ -259,7 +259,7 @@ public final class StoragePeek extends JavaPlugin {
                 }
                 return true;
             } else if (args.length > 0 && args[0].equalsIgnoreCase("purge")) {
-                if (!sender.hasPermission("storagepeek.admin")) {
+                if (!sender.hasPermission("storagepeek.purge") && !sender.hasPermission("storagepeek.admin")) {
                     sender.sendMessage(messageManager.getMessage("no-permission"));
                     return true;
                 }
