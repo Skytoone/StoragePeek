@@ -257,18 +257,30 @@ public class ExhibitionFrameListener implements Listener {
     }
 
     private String serializeItem(ItemStack item) {
-        YamlConfiguration config = new YamlConfiguration();
-        config.set("item", item);
-        return config.saveToString();
+        if (item == null || item.getType() == Material.AIR) return null;
+        try {
+            byte[] bytes = item.serializeAsBytes();
+            return java.util.Base64.getEncoder().encodeToString(bytes);
+        } catch (Throwable t) {
+            YamlConfiguration config = new YamlConfiguration();
+            config.set("item", item);
+            return config.saveToString();
+        }
     }
 
     private ItemStack deserializeItem(String data) {
+        if (data == null || data.isEmpty()) return null;
         try {
-            YamlConfiguration config = new YamlConfiguration();
-            config.loadFromString(data);
-            return config.getItemStack("item");
+            byte[] bytes = java.util.Base64.getDecoder().decode(data);
+            return ItemStack.deserializeBytes(bytes);
         } catch (Exception ex) {
-            return null;
+            try {
+                YamlConfiguration config = new YamlConfiguration();
+                config.loadFromString(data);
+                return config.getItemStack("item");
+            } catch (Exception ignored) {
+                return null;
+            }
         }
     }
 }

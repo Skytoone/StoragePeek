@@ -900,28 +900,43 @@ public final class StoragePeek extends JavaPlugin {
         return count;
     }
 
-    private int handleSmartBaseDeposit(Player player, int radius) {
-        int totalDeposited = 0;
-        org.bukkit.Location pLoc = player.getLocation();
-        if (pLoc.getWorld() == null) return 0;
-
-        int bx = pLoc.getBlockX();
-        int by = pLoc.getBlockY();
-        int bz = pLoc.getBlockZ();
-
+    private List<org.bukkit.block.Block> findContainersInRadius(Location pLoc, int radius, Player player) {
         List<org.bukkit.block.Block> containers = new java.util.ArrayList<>();
-        for (int x = bx - radius; x <= bx + radius; x++) {
-            for (int y = Math.max(pLoc.getWorld().getMinHeight(), by - 8); y <= Math.min(pLoc.getWorld().getMaxHeight(), by + 8); y++) {
-                for (int z = bz - radius; z <= bz + radius; z++) {
-                    org.bukkit.block.Block block = pLoc.getWorld().getBlockAt(x, y, z);
-                    if (getHookManager().isCustomContainer(block) || getRaycastTask().getAllowedBlocks().contains(block.getType())) {
-                        if (protectionManager.canAccess(player, block.getLocation())) {
-                            containers.add(block);
+        org.bukkit.World world = pLoc.getWorld();
+        if (world == null) return containers;
+
+        int minChunkX = (pLoc.getBlockX() - radius) >> 4;
+        int maxChunkX = (pLoc.getBlockX() + radius) >> 4;
+        int minChunkZ = (pLoc.getBlockZ() - radius) >> 4;
+        int maxChunkZ = (pLoc.getBlockZ() + radius) >> 4;
+
+        double radiusSq = (double) radius * radius;
+
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                if (!world.isChunkLoaded(cx, cz)) continue;
+                org.bukkit.Chunk chunk = world.getChunkAt(cx, cz);
+                for (org.bukkit.block.BlockState state : chunk.getTileEntities()) {
+                    org.bukkit.block.Block block = state.getBlock();
+                    if (block.getLocation().distanceSquared(pLoc) <= radiusSq) {
+                        if (getHookManager().isCustomContainer(block) || getRaycastTask().getAllowedBlocks().contains(block.getType())) {
+                            if (protectionManager.canAccess(player, block.getLocation())) {
+                                containers.add(block);
+                            }
                         }
                     }
                 }
             }
         }
+        return containers;
+    }
+
+    private int handleSmartBaseDeposit(Player player, int radius) {
+        int totalDeposited = 0;
+        org.bukkit.Location pLoc = player.getLocation();
+        if (pLoc.getWorld() == null) return 0;
+
+        List<org.bukkit.block.Block> containers = findContainersInRadius(pLoc, radius, player);
 
         for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
             org.bukkit.inventory.ItemStack item = player.getInventory().getItem(slot);
@@ -956,10 +971,6 @@ public final class StoragePeek extends JavaPlugin {
         Location pLoc = player.getLocation();
         if (pLoc.getWorld() == null) return;
 
-        int bx = pLoc.getBlockX();
-        int by = pLoc.getBlockY();
-        int bz = pLoc.getBlockZ();
-
         int totalChests = 0;
         int totalSlotsUsed = 0;
         int totalSlotsCapacity = 0;
@@ -971,29 +982,24 @@ public final class StoragePeek extends JavaPlugin {
         fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
             (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
 
-        for (int x = bx - radius; x <= bx + radius; x++) {
-            for (int y = Math.max(pLoc.getWorld().getMinHeight(), by - 12); y <= Math.min(pLoc.getWorld().getMaxHeight(), by + 12); y++) {
-                for (int z = bz - radius; z <= bz + radius; z++) {
-                    org.bukkit.block.Block block = pLoc.getWorld().getBlockAt(x, y, z);
-                    if (getHookManager().isCustomContainer(block) || getRaycastTask().getAllowedBlocks().contains(block.getType())) {
-                        org.bukkit.inventory.Inventory inv = getHookManager().getInventory(block, player);
-                        if (inv != null) {
-                            totalChests++;
-                            totalSlotsCapacity += inv.getSize();
-                            double chestValue = apiImpl.getContainerTotalValue(block, player);
-                            totalEcoValue += chestValue;
+        List<org.bukkit.block.Block> containers = findContainersInRadius(pLoc, radius, player);
 
-                            for (org.bukkit.inventory.ItemStack item : inv.getContents()) {
-                                if (item != null && item.getType() != Material.AIR) {
-                                    totalSlotsUsed++;
-                                    totalItemCount += item.getAmount();
-                                    double val = apiImpl.getItemValue(item);
-                                    if (val > highestItemVal) {
-                                        highestItemVal = val;
-                                        mostValuableMaterial = item.getType();
-                                    }
-                                }
-                            }
+        for (org.bukkit.block.Block block : containers) {
+            org.bukkit.inventory.Inventory inv = getHookManager().getInventory(block, player);
+            if (inv != null) {
+                totalChests++;
+                totalSlotsCapacity += inv.getSize();
+                double chestValue = apiImpl.getContainerTotalValue(block, player);
+                totalEcoValue += chestValue;
+
+                for (org.bukkit.inventory.ItemStack item : inv.getContents()) {
+                    if (item != null && item.getType() != Material.AIR) {
+                        totalSlotsUsed++;
+                        totalItemCount += item.getAmount();
+                        double val = apiImpl.getItemValue(item);
+                        if (val > highestItemVal) {
+                            highestItemVal = val;
+                            mostValuableMaterial = item.getType();
                         }
                     }
                 }

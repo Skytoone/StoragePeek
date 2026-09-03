@@ -456,6 +456,7 @@ public class PeekSession {
                     ent.setBillboard(Display.Billboard.CENTER);
                     ent.setVisibleByDefault(false);
                     ent.setBrightness(new Display.Brightness(15, 15));
+                    ent.setInterpolationDelay(0);
                     ent.setInterpolationDuration(2); // Silky smooth hovering scaling
                     ent.setTeleportDuration(1);
                     if (finalGlowColor != null) {
@@ -491,10 +492,11 @@ public class PeekSession {
                 ent.setBillboard(Display.Billboard.CENTER);
                 ent.setVisibleByDefault(false);
                 ent.setBrightness(new Display.Brightness(15, 15));
+                ent.setInterpolationDelay(0);
                 ent.setInterpolationDuration(4);
                 ent.setTeleportDuration(1);
                 Transformation t = ent.getTransformation();
-                t.getTranslation().set(-0.08f, -0.08f, -0.04f);
+                t.getTranslation().set(-0.08f, -0.08f, -0.08f);
                 t.getScale().set(0f, 0f, 0f);
                 ent.setTransformation(t);
             });
@@ -506,6 +508,7 @@ public class PeekSession {
                 plugin.tagDisplayEntity(ent);
                 ent.setVisibleByDefault(false);
                 ent.setBillboard(Display.Billboard.CENTER);
+                ent.setInterpolationDelay(0);
                 ent.setInterpolationDuration(4);
                 ent.setTeleportDuration(1);
                 ent.setBrightness(new Display.Brightness(15, 15));
@@ -514,7 +517,7 @@ public class PeekSession {
                 ent.setAlignment(TextDisplay.TextAlignment.CENTER);
                 ent.text(net.kyori.adventure.text.Component.empty());
                 Transformation t = ent.getTransformation();
-                t.getTranslation().set(0f, 0f, 0.10f);
+                t.getTranslation().set(0f, 0f, 0.20f);
                 t.getScale().set(0f, 0f, 0f);
                 ent.setTransformation(t);
             });
@@ -523,7 +526,7 @@ public class PeekSession {
 
             boolean fillEnabled = plugin.getConfig().getBoolean("visualizers.fill-indicator", true)
                     && plugin.getConfig().getBoolean("holograms.fill-indicator-enabled", true);
-            if (fillEnabled || true) {
+            if (fillEnabled) {
                 int totalSlots = inventory != null ? inventory.getSize() : 0;
                 int usedSlots = 0;
                 if (inventory != null) {
@@ -657,6 +660,7 @@ public class PeekSession {
         if (inventory == null) {
             return;
         }
+        updateCounter++;
         if (focusModeEnabled) {
             boolean isSneaking = player.isSneaking();
             if (isSneaking && !frozen) {
@@ -1585,6 +1589,11 @@ public class PeekSession {
         // floor/bottom of block
         if (dir.getY() < -0.4) {
             baseCenterCache.add(0, 0.12, 0);
+        }
+
+        // Lift HUD for Shulker Boxes to prevent clipping with open lid model
+        if (block != null && block.getType().name().contains("SHULKER_BOX")) {
+            baseCenterCache.add(0, 0.35, 0);
         }
 
         centerCache.setWorld(baseCenterCache.getWorld());

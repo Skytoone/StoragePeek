@@ -680,40 +680,4 @@ public class RaycastTask extends BukkitRunnable {
         }
         return false;
     }
-
-    private Location findNearestLootChest(Player player) {
-        Location pLoc = player.getLocation();
-        int px = pLoc.getBlockX();
-        int py = pLoc.getBlockY();
-        int pz = pLoc.getBlockZ();
-        int r = 24;
-        Location nearest = null;
-        double nearestDistSq = Double.MAX_VALUE;
-
-        for (int dx = -r; dx <= r; dx += 2) {
-            for (int dy = -8; dy <= 8; dy += 2) {
-                for (int dz = -r; dz <= r; dz += 2) {
-                    int bx = px + dx;
-                    int by = py + dy;
-                    int bz = pz + dz;
-                    if (by < player.getWorld().getMinHeight() || by > player.getWorld().getMaxHeight()) {
-                        continue;
-                    }
-                    Block block = player.getWorld().getBlockAt(bx, by, bz);
-                    String typeName = block.getType().name();
-                    if (typeName.contains("CHEST") || typeName.contains("BARREL") || typeName.contains("SHULKER_BOX")) {
-                        if (block.getState() instanceof org.bukkit.loot.Lootable lootable && lootable.getLootTable() != null) {
-                            Location bLoc = block.getLocation().add(0.5, 0.5, 0.5);
-                            double distSq = pLoc.distanceSquared(bLoc);
-                            if (distSq < nearestDistSq) {
-                                nearestDistSq = distSq;
-                                nearest = bLoc;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return nearest;
-    }
 }
