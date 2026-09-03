@@ -322,10 +322,7 @@ public class RaycastTask extends BukkitRunnable {
             if (targetLoc == null)
                 return;
 
-            boolean sameContainer = currentSession != null && (
-                    (targetBlock != null && targetBlock.equals(currentSession.getBlock())) ||
-                    (targetEntity != null && targetEntity.equals(currentSession.getEntity()))
-            );
+            boolean sameContainer = isSameContainer(currentSession, targetBlock, targetEntity);
 
             // Granular checks only for new containers (deferred checks)
             if (!sameContainer) {
@@ -655,6 +652,33 @@ public class RaycastTask extends BukkitRunnable {
 
     public java.util.Set<EntityType> getAllowedEntities() {
         return allowedEntities;
+    }
+
+    private boolean isSameContainer(PeekSession session, Block targetBlock, Entity targetEntity) {
+        if (session == null) {
+            return false;
+        }
+        if (targetEntity != null && targetEntity.equals(session.getEntity())) {
+            return true;
+        }
+        if (targetBlock != null) {
+            if (targetBlock.equals(session.getBlock())) {
+                return true;
+            }
+            Inventory inv = session.getInventory();
+            if (inv instanceof org.bukkit.inventory.DoubleChestInventory dci) {
+                org.bukkit.block.DoubleChest doubleChest = dci.getHolder();
+                if (doubleChest != null) {
+                    if (doubleChest.getLeftSide() instanceof org.bukkit.block.BlockState leftState && targetBlock.equals(leftState.getBlock())) {
+                        return true;
+                    }
+                    if (doubleChest.getRightSide() instanceof org.bukkit.block.BlockState rightState && targetBlock.equals(rightState.getBlock())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private Location findNearestLootChest(Player player) {

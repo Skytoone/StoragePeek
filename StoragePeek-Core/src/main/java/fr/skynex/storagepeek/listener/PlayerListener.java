@@ -211,4 +211,16 @@ public class PlayerListener implements Listener {
     public void onWorldUnload(org.bukkit.event.world.WorldUnloadEvent event) {
         plugin.removeDisabledWorldFromCache(event.getWorld());
     }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onChunkLoad(org.bukkit.event.world.ChunkLoadEvent event) {
+        if (plugin.getDisplayKey() == null) return;
+        for (org.bukkit.entity.Entity entity : event.getChunk().getEntities()) {
+            if (entity instanceof org.bukkit.entity.Display || entity instanceof org.bukkit.entity.Interaction) {
+                if (entity.getPersistentDataContainer().has(plugin.getDisplayKey(), org.bukkit.persistence.PersistentDataType.BYTE)) {
+                    entity.remove();
+                }
+            }
+        }
+    }
 }

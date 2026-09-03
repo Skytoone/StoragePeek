@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.List;
 import java.util.Arrays;
+import java.util.Collections;
 
 public final class StoragePeek extends JavaPlugin {
 
@@ -161,263 +162,288 @@ public final class StoragePeek extends JavaPlugin {
             getLogger().info("Successfully registered PlaceholderAPI expansion (%storagepeek_...)!");
         }
 
-        getCommand("storagepeek").setExecutor((sender, command, label, args) -> {
-            if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-                if (!sender.hasPermission("storagepeek.reload") && !sender.hasPermission("storagepeek.admin")) {
-                    sender.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                reloadConfig();
-                loadConfigurationCache();
-                messageManager.reloadConfig();
-                
-                raycastTasks.values().forEach(task -> {
-                    if (task != null) {
-                        task.cancel();
+        try {
+            org.bukkit.command.PluginCommand spCommand = getCommand("storagepeek");
+            if (spCommand != null) {
+                spCommand.setExecutor((sender, command, label, args) -> {
+                    if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
+                        if (!sender.hasPermission("storagepeek.reload") && !sender.hasPermission("storagepeek.admin")) {
+                            sender.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        reloadConfig();
+                        loadConfigurationCache();
+                        messageManager.reloadConfig();
+                        
+                        raycastTasks.values().forEach(task -> {
+                            if (task != null) {
+                                task.cancel();
+                            }
+                        });
+                        raycastTasks.clear();
+                        
+                        raycastTask = new RaycastTask();
+                        for (Player player : getServer().getOnlinePlayers()) {
+                            startRaycastTask(player);
+                        }
+                        
+                        sender.sendMessage(messageManager.getMessage("reload-success"));
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("toggle")) {
+                        if (!(sender instanceof org.bukkit.entity.Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.toggle")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        org.bukkit.persistence.PersistentDataContainer pdc = player.getPersistentDataContainer();
+                        if (pdc.has(disabledKey, org.bukkit.persistence.PersistentDataType.BYTE)) {
+                            pdc.remove(disabledKey);
+                            disabledPlayers.remove(player.getUniqueId());
+                            player.sendMessage(messageManager.getMessage("toggle-enabled"));
+                        } else {
+                            pdc.set(disabledKey, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+                            disabledPlayers.add(player.getUniqueId());
+                            player.sendMessage(messageManager.getMessage("toggle-disabled"));
+                            PeekSession session = activeSessions.remove(player.getUniqueId());
+                            if (session != null) {
+                                session.cleanup(true);
+                            }
+                        }
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("themes")) {
+                        if (!(sender instanceof org.bukkit.entity.Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.themes")) {
+                            sender.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        openThemesMenu(player);
+                        return true;
+                    } else if (args.length > 1 && args[0].equalsIgnoreCase("theme")) {
+                        if (!(sender instanceof org.bukkit.entity.Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        String wanted = args[1].toLowerCase().trim();
+                        List<String> validThemes = Arrays.asList("default", "ender", "rich", "aqua", "nether", "neon", "cyberpunk", "rainbow");
+                        if (!validThemes.contains(wanted)) {
+                            player.sendMessage("§cInvalid theme! Choose from: default, ender, rich, aqua, nether, neon, cyberpunk, rainbow");
+                            return true;
+                        }
+                        if (!wanted.equals("default") && !player.hasPermission("storagepeek.theme." + wanted)) {
+                            player.sendMessage(messageManager.getMessage("theme-no-permission").replace("{theme}", wanted));
+                            return true;
+                        }
+                        org.bukkit.persistence.PersistentDataContainer pdc = player.getPersistentDataContainer();
+                        NamespacedKey themeKey = new NamespacedKey(this, "theme");
+                        pdc.set(themeKey, org.bukkit.persistence.PersistentDataType.STRING, wanted);
+                        player.sendMessage(messageManager.getMessage("theme-updated").replace("{theme}", wanted));
+                        return true;
+                    } else if (args.length > 1 && args[0].equalsIgnoreCase("filter")) {
+                        if (!(sender instanceof org.bukkit.entity.Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.filter") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        String wanted = args[1].toUpperCase().trim();
+                        try {
+                            fr.skynex.storagepeek.session.PeekSession.FilterType filter = 
+                                fr.skynex.storagepeek.session.PeekSession.FilterType.valueOf(wanted);
+                            
+                            PeekSession session = activeSessions.get(player.getUniqueId());
+                            if (session != null) {
+                                session.setActiveFilter(filter);
+                                player.sendMessage(messageManager.getMessage("filter-updated").replace("{filter}", wanted.toLowerCase()));
+                                playConfigSound(player, "sort", org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.2f);
+                            } else {
+                                player.sendMessage("§cYou must be looking at a container to apply a filter.");
+                            }
+                        } catch (Exception ex) {
+                            player.sendMessage("§cInvalid filter type! Choose from: ALL, RESOURCES, FOOD, EQUIPMENT");
+                        }
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("purge")) {
+                        if (!sender.hasPermission("storagepeek.purge") && !sender.hasPermission("storagepeek.admin")) {
+                            sender.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        int purged = purgeOrphanedEntities();
+                        sender.sendMessage("§aPurged " + purged + " orphaned StoragePeek display entities across all loaded chunks.");
+                        return true;
+                    } else if (args.length > 1 && args[0].equalsIgnoreCase("find")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.find") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        String wantedName = args[1].toUpperCase().trim();
+                        Material mat = Material.matchMaterial(wantedName);
+                        if (mat == null) {
+                            player.sendMessage("§cInvalid item material! Example: /sp find DIAMOND");
+                            return true;
+                        }
+
+                        List<org.bukkit.block.Block> containers = ((fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get())
+                            .findNearbyContainers(player.getLocation(), 32.0, mat);
+
+                        if (containers.isEmpty()) {
+                            player.sendMessage("§cNo nearby containers containing " + mat.name() + " were found within 32 blocks.");
+                            return true;
+                        }
+
+                        org.bukkit.block.Block nearest = containers.get(0);
+                        player.sendMessage("§aFound " + containers.size() + " container(s) with " + mat.name() + "! Pointing compass arrow to nearest container.");
+                        getRaycastTask().setCompassTarget(player, nearest.getLocation().add(0.5, 0.5, 0.5));
+                        playConfigSound(player, "sort", Sound.ITEM_LODESTONE_COMPASS_LOCK, 0.8f, 1.2f);
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("deposit")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.deposit") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        int radius = 16;
+                        if (args.length > 1) {
+                            try {
+                                radius = Math.min(32, Math.max(1, Integer.parseInt(args[1])));
+                            } catch (NumberFormatException ignored) {}
+                        }
+
+                        int depositedCount = handleSmartBaseDeposit(player, radius);
+                        if (depositedCount > 0) {
+                            player.sendMessage("§a[StoragePeek] Deposited " + depositedCount + " matching items into nearby containers!");
+                            playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.2f);
+                        } else {
+                            player.sendMessage("§e[StoragePeek] No matching container slots found nearby for items in your inventory.");
+                        }
+                        return true;
+                    } else if (args.length > 0 && (args[0].equalsIgnoreCase("label") || args[0].equalsIgnoreCase("unlabel"))) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.label") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        org.bukkit.block.Block targetBlock = player.getTargetBlockExact(5);
+                        if (targetBlock == null || (!getHookManager().isCustomContainer(targetBlock) && !getRaycastTask().getAllowedBlocks().contains(targetBlock.getType()))) {
+                            player.sendMessage("§cYou must be looking at a valid container block within 5 blocks!");
+                            return true;
+                        }
+
+                        if (!(targetBlock.getState() instanceof org.bukkit.block.TileState tileState)) {
+                            player.sendMessage("§cThis block type cannot store persistent labels.");
+                            return true;
+                        }
+
+                        NamespacedKey labelKey = new NamespacedKey(this, "custom_label");
+                        if (args[0].equalsIgnoreCase("unlabel") || args.length == 1) {
+                            tileState.getPersistentDataContainer().remove(labelKey);
+                            tileState.update();
+                            player.sendMessage("§a[StoragePeek] Removed 3D label from container!");
+                            playConfigSound(player, "sort", Sound.BLOCK_CHEST_CLOSE, 0.8f, 1.2f);
+                        } else {
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = 1; i < args.length; i++) {
+                                sb.append(args[i]).append(" ");
+                            }
+                            String labelText = sb.toString().trim().replace("&", "§");
+                            tileState.getPersistentDataContainer().set(labelKey, org.bukkit.persistence.PersistentDataType.STRING, labelText);
+                            tileState.update();
+                            player.sendMessage("§a[StoragePeek] Set 3D container label to: §f" + labelText);
+                            playConfigSound(player, "sort", Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 1.3f);
+                        }
+                        return true;
+                    } else if (args.length > 1 && args[0].equalsIgnoreCase("createtheme")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.createtheme") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        String themeName = args[1].toLowerCase().trim();
+                        org.bukkit.inventory.ItemStack mainHand = player.getInventory().getItemInMainHand();
+                        Material bgMat = (mainHand != null && mainHand.getType() != Material.AIR) ? mainHand.getType() : Material.BLACK_STAINED_GLASS;
+
+                        getConfig().set("themes.custom." + themeName + ".background-material", bgMat.name());
+                        getConfig().set("themes.custom." + themeName + ".particle-type", "END_ROD");
+                        getConfig().set("themes.custom." + themeName + ".glow-color", "255,215,0");
+                        saveConfig();
+                        loadConfigurationCache();
+
+                        player.sendMessage("§a[StoragePeek] Created custom 3D theme '§e" + themeName + "§a' using background block §f" + bgMat.name() + "§a!");
+                        playConfigSound(player, "sort", Sound.UI_STONECUTTER_TAKE_RESULT, 0.8f, 1.2f);
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("stats")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.stats") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        int radius = 32;
+                        if (args.length > 1) {
+                            try {
+                                radius = Math.min(64, Math.max(1, Integer.parseInt(args[1])));
+                            } catch (NumberFormatException ignored) {}
+                        }
+
+                        displayBaseStatsHologram(player, radius);
+                        return true;
                     }
+                    sender.sendMessage(messageManager.getMessage("usage-reload"));
+                    sender.sendMessage(messageManager.getMessage("usage-toggle"));
+                    sender.sendMessage(messageManager.getMessage("usage-themes"));
+                    sender.sendMessage(messageManager.getMessage("usage-filter"));
+                    sender.sendMessage("§e/storagepeek label <text> §7- Attach persistent 3D label to targeted container.");
+                    sender.sendMessage("§e/storagepeek createtheme <name> §7- Create new 3D theme using held block.");
+                    sender.sendMessage("§e/storagepeek stats [radius] §7- Display 3D base storage statistics dashboard.");
+                    sender.sendMessage("§e/storagepeek find <item> §7- Point compass arrow to nearby chest containing item.");
+                    sender.sendMessage("§e/storagepeek deposit [radius] §7- Auto-deposit matching items into nearby chests.");
+                    sender.sendMessage("§e/storagepeek purge §7- Purge orphaned display entities.");
+                    return true;
                 });
-                raycastTasks.clear();
-                
-                raycastTask = new RaycastTask();
-                for (Player player : getServer().getOnlinePlayers()) {
-                    startRaycastTask(player);
-                }
-                
-                sender.sendMessage(messageManager.getMessage("reload-success"));
-                return true;
-            } else if (args.length > 0 && args[0].equalsIgnoreCase("toggle")) {
-                if (!(sender instanceof org.bukkit.entity.Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.toggle")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                org.bukkit.persistence.PersistentDataContainer pdc = player.getPersistentDataContainer();
-                if (pdc.has(disabledKey, org.bukkit.persistence.PersistentDataType.BYTE)) {
-                    pdc.remove(disabledKey);
-                    disabledPlayers.remove(player.getUniqueId());
-                    player.sendMessage(messageManager.getMessage("toggle-enabled"));
-                } else {
-                    pdc.set(disabledKey, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
-                    disabledPlayers.add(player.getUniqueId());
-                    player.sendMessage(messageManager.getMessage("toggle-disabled"));
-                    PeekSession session = activeSessions.remove(player.getUniqueId());
-                    if (session != null) {
-                        session.cleanup(true);
+
+                spCommand.setTabCompleter((sender, command, alias, args) -> {
+                    if (args.length == 1) {
+                        List<String> subCommands = Arrays.asList("reload", "toggle", "themes", "theme", "filter", "label", "unlabel", "createtheme", "stats", "find", "deposit", "purge");
+                        return subCommands.stream().filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase())).toList();
                     }
-                }
-                return true;
-            } else if (args.length > 0 && args[0].equalsIgnoreCase("themes")) {
-                if (!(sender instanceof org.bukkit.entity.Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.themes")) {
-                    sender.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                openThemesMenu(player);
-                return true;
-            } else if (args.length > 1 && args[0].equalsIgnoreCase("theme")) {
-                if (!(sender instanceof org.bukkit.entity.Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                String wanted = args[1].toLowerCase().trim();
-                List<String> validThemes = Arrays.asList("default", "ender", "rich", "aqua", "nether", "neon", "cyberpunk", "rainbow");
-                if (!validThemes.contains(wanted)) {
-                    player.sendMessage("§cInvalid theme! Choose from: default, ender, rich, aqua, nether, neon, cyberpunk, rainbow");
-                    return true;
-                }
-                if (!wanted.equals("default") && !player.hasPermission("storagepeek.theme." + wanted)) {
-                    player.sendMessage(messageManager.getMessage("theme-no-permission").replace("{theme}", wanted));
-                    return true;
-                }
-                org.bukkit.persistence.PersistentDataContainer pdc = player.getPersistentDataContainer();
-                NamespacedKey themeKey = new NamespacedKey(this, "theme");
-                pdc.set(themeKey, org.bukkit.persistence.PersistentDataType.STRING, wanted);
-                player.sendMessage(messageManager.getMessage("theme-updated").replace("{theme}", wanted));
-                return true;
-            } else if (args.length > 1 && args[0].equalsIgnoreCase("filter")) {
-                if (!(sender instanceof org.bukkit.entity.Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.filter") && !player.hasPermission("storagepeek.admin")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                String wanted = args[1].toUpperCase().trim();
-                try {
-                    fr.skynex.storagepeek.session.PeekSession.FilterType filter = 
-                        fr.skynex.storagepeek.session.PeekSession.FilterType.valueOf(wanted);
-                    
-                    PeekSession session = activeSessions.get(player.getUniqueId());
-                    if (session != null) {
-                        session.setActiveFilter(filter);
-                        player.sendMessage(messageManager.getMessage("filter-updated").replace("{filter}", wanted.toLowerCase()));
-                        playConfigSound(player, "sort", org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.2f);
-                    } else {
-                        player.sendMessage("§cYou must be looking at a container to apply a filter.");
+                    if (args.length == 2 && args[0].equalsIgnoreCase("theme")) {
+                        List<String> validThemes = Arrays.asList("default", "ender", "rich", "aqua", "nether", "neon", "cyberpunk", "rainbow");
+                        return validThemes.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
                     }
-                } catch (Exception ex) {
-                    player.sendMessage("§cInvalid filter type! Choose from: ALL, RESOURCES, FOOD, EQUIPMENT");
-                }
-                return true;
-            } else if (args.length > 0 && args[0].equalsIgnoreCase("purge")) {
-                if (!sender.hasPermission("storagepeek.purge") && !sender.hasPermission("storagepeek.admin")) {
-                    sender.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                int purged = purgeOrphanedEntities();
-                sender.sendMessage("§aPurged " + purged + " orphaned StoragePeek display entities across all loaded chunks.");
-                return true;
-            } else if (args.length > 1 && args[0].equalsIgnoreCase("find")) {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.find") && !player.hasPermission("storagepeek.admin")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                String wantedName = args[1].toUpperCase().trim();
-                Material mat = Material.matchMaterial(wantedName);
-                if (mat == null) {
-                    player.sendMessage("§cInvalid item material! Example: /sp find DIAMOND");
-                    return true;
-                }
-
-                List<org.bukkit.block.Block> containers = ((fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get())
-                    .findNearbyContainers(player.getLocation(), 32.0, mat);
-
-                if (containers.isEmpty()) {
-                    player.sendMessage("§cNo nearby containers containing " + mat.name() + " were found within 32 blocks.");
-                    return true;
-                }
-
-                org.bukkit.block.Block nearest = containers.get(0);
-                player.sendMessage("§aFound " + containers.size() + " container(s) with " + mat.name() + "! Pointing compass arrow to nearest container.");
-                getRaycastTask().setCompassTarget(player, nearest.getLocation().add(0.5, 0.5, 0.5));
-                playConfigSound(player, "sort", Sound.ITEM_LODESTONE_COMPASS_LOCK, 0.8f, 1.2f);
-                return true;
-            } else if (args.length > 0 && args[0].equalsIgnoreCase("deposit")) {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.deposit") && !player.hasPermission("storagepeek.admin")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                int radius = 16;
-                if (args.length > 1) {
-                    try {
-                        radius = Math.min(32, Math.max(1, Integer.parseInt(args[1])));
-                    } catch (NumberFormatException ignored) {}
-                }
-
-                int depositedCount = handleSmartBaseDeposit(player, radius);
-                if (depositedCount > 0) {
-                    player.sendMessage("§a[StoragePeek] Deposited " + depositedCount + " matching items into nearby containers!");
-                    playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.2f);
-                } else {
-                    player.sendMessage("§e[StoragePeek] No matching container slots found nearby for items in your inventory.");
-                }
-                return true;
-            } else if (args.length > 0 && (args[0].equalsIgnoreCase("label") || args[0].equalsIgnoreCase("unlabel"))) {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.label") && !player.hasPermission("storagepeek.admin")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                org.bukkit.block.Block targetBlock = player.getTargetBlockExact(5);
-                if (targetBlock == null || (!getHookManager().isCustomContainer(targetBlock) && !getRaycastTask().getAllowedBlocks().contains(targetBlock.getType()))) {
-                    player.sendMessage("§cYou must be looking at a valid container block within 5 blocks!");
-                    return true;
-                }
-
-                if (!(targetBlock.getState() instanceof org.bukkit.block.TileState tileState)) {
-                    player.sendMessage("§cThis block type cannot store persistent labels.");
-                    return true;
-                }
-
-                NamespacedKey labelKey = new NamespacedKey(this, "custom_label");
-                if (args[0].equalsIgnoreCase("unlabel") || args.length == 1) {
-                    tileState.getPersistentDataContainer().remove(labelKey);
-                    tileState.update();
-                    player.sendMessage("§a[StoragePeek] Removed 3D label from container!");
-                    playConfigSound(player, "sort", Sound.BLOCK_CHEST_CLOSE, 0.8f, 1.2f);
-                } else {
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 1; i < args.length; i++) {
-                        sb.append(args[i]).append(" ");
+                    if (args.length == 2 && args[0].equalsIgnoreCase("filter")) {
+                        List<String> validFilters = Arrays.asList("ALL", "RESOURCES", "FOOD", "EQUIPMENT");
+                        return validFilters.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
                     }
-                    String labelText = sb.toString().trim().replace("&", "§");
-                    tileState.getPersistentDataContainer().set(labelKey, org.bukkit.persistence.PersistentDataType.STRING, labelText);
-                    tileState.update();
-                    player.sendMessage("§a[StoragePeek] Set 3D container label to: §f" + labelText);
-                    playConfigSound(player, "sort", Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 1.3f);
-                }
-                return true;
-            } else if (args.length > 1 && args[0].equalsIgnoreCase("createtheme")) {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.createtheme") && !player.hasPermission("storagepeek.admin")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                String themeName = args[1].toLowerCase().trim();
-                org.bukkit.inventory.ItemStack mainHand = player.getInventory().getItemInMainHand();
-                Material bgMat = (mainHand != null && mainHand.getType() != Material.AIR) ? mainHand.getType() : Material.BLACK_STAINED_GLASS;
-
-                getConfig().set("themes.custom." + themeName + ".background-material", bgMat.name());
-                getConfig().set("themes.custom." + themeName + ".particle-type", "END_ROD");
-                getConfig().set("themes.custom." + themeName + ".glow-color", "255,215,0");
-                saveConfig();
-                loadConfigurationCache();
-
-                player.sendMessage("§a[StoragePeek] Created custom 3D theme '§e" + themeName + "§a' using background block §f" + bgMat.name() + "§a!");
-                playConfigSound(player, "sort", Sound.UI_STONECUTTER_TAKE_RESULT, 0.8f, 1.2f);
-                return true;
-            } else if (args.length > 0 && args[0].equalsIgnoreCase("stats")) {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage(messageManager.getMessage("only-players"));
-                    return true;
-                }
-                if (!player.hasPermission("storagepeek.stats") && !player.hasPermission("storagepeek.admin")) {
-                    player.sendMessage(messageManager.getMessage("no-permission"));
-                    return true;
-                }
-                int radius = 32;
-                if (args.length > 1) {
-                    try {
-                        radius = Math.min(64, Math.max(1, Integer.parseInt(args[1])));
-                    } catch (NumberFormatException ignored) {}
-                }
-
-                displayBaseStatsHologram(player, radius);
-                return true;
+                    return Collections.emptyList();
+                });
+            } else {
+                getLogger().warning("Could not register /storagepeek command executor: getCommand(\"storagepeek\") returned null.");
             }
-            sender.sendMessage(messageManager.getMessage("usage-reload"));
-            sender.sendMessage(messageManager.getMessage("usage-toggle"));
-            sender.sendMessage(messageManager.getMessage("usage-themes"));
-            sender.sendMessage(messageManager.getMessage("usage-filter"));
-            sender.sendMessage("§e/storagepeek label <text> §7- Attach persistent 3D label to targeted container.");
-            sender.sendMessage("§e/storagepeek createtheme <name> §7- Create new 3D theme using held block.");
-            sender.sendMessage("§e/storagepeek stats [radius] §7- Display 3D base storage statistics dashboard.");
-            sender.sendMessage("§e/storagepeek find <item> §7- Point compass arrow to nearby chest containing item.");
-            sender.sendMessage("§e/storagepeek deposit [radius] §7- Auto-deposit matching items into nearby chests.");
-            sender.sendMessage("§e/storagepeek purge §7- Purge orphaned display entities.");
-            return true;
-        });
+        } catch (UnsupportedOperationException e) {
+            getLogger().warning("Could not register /storagepeek command executor: " + e.getMessage());
+        }
 
         getLogger().info("StoragePeek v" + getPluginMeta().getVersion() + " enabled successfully!");
     }

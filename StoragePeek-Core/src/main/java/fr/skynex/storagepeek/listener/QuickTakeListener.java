@@ -1,6 +1,9 @@
 package fr.skynex.storagepeek.listener;
 
 import fr.skynex.storagepeek.StoragePeek;
+import fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent;
+import fr.skynex.storagepeek.api.events.StoragePeekQuickTakeEvent;
+import fr.skynex.storagepeek.api.events.StoragePeekSwapItemEvent;
 import fr.skynex.storagepeek.session.PeekSession;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -93,6 +96,10 @@ public class QuickTakeListener implements Listener {
         int slot = session.getTargetSlot();
         if (slot == -1) {
             if (isRightClickActual) {
+                ItemStack mainHandItem = player.getInventory().getItemInMainHand();
+                if (mainHandItem != null && mainHandItem.getType().isBlock() && mainHandItem.getType() != Material.AIR) {
+                    return;
+                }
                 event.setCancelled(true);
                 handleSmartDeposit(player, session);
             }
@@ -129,8 +136,8 @@ public class QuickTakeListener implements Listener {
 
         // CASE 1: Targeted slot is empty. Move entire stack into it.
         if (chestItem == null || chestItem.getType() == Material.AIR) {
-            fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent depositEvent =
-                new fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, slot);
+            StoragePeekQuickDepositEvent depositEvent =
+                new StoragePeekQuickDepositEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, slot);
             org.bukkit.Bukkit.getPluginManager().callEvent(depositEvent);
             if (depositEvent.isCancelled()) return;
 
@@ -142,8 +149,8 @@ public class QuickTakeListener implements Listener {
 
         // CASE 2: Items stack. Fill it up.
         if (hand.isSimilar(chestItem)) {
-            fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent depositEvent =
-                new fr.skynex.storagepeek.api.events.StoragePeekQuickDepositEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, slot);
+            StoragePeekQuickDepositEvent depositEvent =
+                new StoragePeekQuickDepositEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, slot);
             org.bukkit.Bukkit.getPluginManager().callEvent(depositEvent);
             if (depositEvent.isCancelled()) return;
 
@@ -165,8 +172,8 @@ public class QuickTakeListener implements Listener {
         }
         // CASE 3: Different items. Let's swap them! Extremely handy UX!
         else {
-            fr.skynex.storagepeek.api.events.StoragePeekSwapItemEvent swapEvent =
-                new fr.skynex.storagepeek.api.events.StoragePeekSwapItemEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, chestItem, slot);
+            StoragePeekSwapItemEvent swapEvent =
+                new StoragePeekSwapItemEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, hand, chestItem, slot);
             org.bukkit.Bukkit.getPluginManager().callEvent(swapEvent);
             if (swapEvent.isCancelled()) return;
 
@@ -185,8 +192,8 @@ public class QuickTakeListener implements Listener {
             return;
 
         PeekSession session = plugin.getActiveSessions().get(player.getUniqueId());
-        fr.skynex.storagepeek.api.events.StoragePeekQuickTakeEvent quickTakeEvent = 
-            new fr.skynex.storagepeek.api.events.StoragePeekQuickTakeEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, item, slot);
+        StoragePeekQuickTakeEvent quickTakeEvent = 
+            new StoragePeekQuickTakeEvent(player, session != null ? session.getBlock() : null, session != null ? session.getEntity() : null, item, slot);
         org.bukkit.Bukkit.getPluginManager().callEvent(quickTakeEvent);
         if (quickTakeEvent.isCancelled()) {
             return;
