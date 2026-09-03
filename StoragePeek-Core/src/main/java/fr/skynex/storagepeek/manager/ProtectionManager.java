@@ -16,6 +16,11 @@ public class ProtectionManager {
     private final List<NamedHook> activeHooks = new ArrayList<>();
 
     public ProtectionManager() {
+        reloadHooks();
+    }
+
+    public void reloadHooks() {
+        activeHooks.clear();
         registerHook("WorldGuard", "fr.skynex.storagepeek.hook.WorldGuardHook");
         registerHook("Lands", "fr.skynex.storagepeek.hook.LandsHook");
         registerHook("GriefPrevention", "fr.skynex.storagepeek.hook.GriefPreventionHook");

@@ -19,6 +19,14 @@ messages:
   theme-no-permission: "&cYou don't have permission to unlock the {theme} theme!"
   usage-filter: "&7Use &f/storagepeek filter <all|riches|food|equipment> &7to filter items."
   filter-updated: "&aHUD filter updated to: &e{filter}"
+  usage-search: "&7Use &f/storagepeek search <item|reset> &7to search container."
+  search-updated: "&aSearching container for: &e\"{query}\""
+  search-cleared: "&eCleared container search filter."
+  usage-history: "&7Use &f/storagepeek history &7to view 3D container audit logs."
+  history-empty: "&cNo recent access history recorded for this container."
+  usage-page: "&7Use &f/storagepeek page <number|next|prev> &7to switch HUD pages."
+  page-updated: "&aSwitched 3D HUD to page &e{page}&a!"
+  usage-vault: "&7Use &f/storagepeek vault <number> &7to preview VaultX virtual vault in 3D."
 
   # Hologram formats
   # {amount} is replaced by the item quantity. Use '&f' for white text.

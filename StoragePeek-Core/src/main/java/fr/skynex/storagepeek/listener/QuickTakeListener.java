@@ -144,6 +144,12 @@ public class QuickTakeListener implements Listener {
             inv.setItem(slot, hand.clone());
             player.getInventory().setItemInMainHand(null);
             plugin.playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.8f);
+            if (session != null && session.getContainerCenter() != null) {
+                spawnItemTransferTrail(player.getEyeLocation(), session.getContainerCenter());
+            }
+            if (session != null && session.getBlock() != null) {
+                plugin.getContainerHistoryManager().recordAccess(session.getBlock().getLocation(), player.getName(), "Deposited " + hand.getType().name());
+            }
             return;
         }
 
@@ -169,6 +175,9 @@ public class QuickTakeListener implements Listener {
                 player.getInventory().setItemInMainHand(null);
             }
             plugin.playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.8f);
+            if (session != null && session.getContainerCenter() != null) {
+                spawnItemTransferTrail(player.getEyeLocation(), session.getContainerCenter());
+            }
         }
         // CASE 3: Different items. Let's swap them! Extremely handy UX!
         else {
@@ -183,6 +192,9 @@ public class QuickTakeListener implements Listener {
             inv.setItem(slot, toChest);
             player.getInventory().setItemInMainHand(toHand);
             plugin.playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.8f);
+            if (session != null && session.getContainerCenter() != null) {
+                spawnItemTransferTrail(player.getEyeLocation(), session.getContainerCenter());
+            }
         }
     }
 
@@ -199,11 +211,24 @@ public class QuickTakeListener implements Listener {
             return;
         }
 
+        if (tryQuickEquip(player, item, inv, slot, session)) {
+            return;
+        }
+
         Map<Integer, ItemStack> leftOver = player.getInventory().addItem(item.clone());
 
         if (leftOver.isEmpty()) {
             inv.setItem(slot, null);
             plugin.playConfigSound(player, "take", Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
+            if (session != null && session.getContainerCenter() != null) {
+                spawnItemTransferTrail(session.getContainerCenter(), player.getEyeLocation());
+            }
+            if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive() && session != null) {
+                plugin.getLootGlowHook().triggerItemPopJump(session.getContainerCenter(), item);
+            }
+            if (session != null && session.getBlock() != null) {
+                plugin.getContainerHistoryManager().recordAccess(session.getBlock().getLocation(), player.getName(), "Took " + item.getType().name());
+            }
         } else {
             ItemStack leftoverStack = leftOver.get(0);
             if (leftoverStack != null) {
@@ -213,6 +238,9 @@ public class QuickTakeListener implements Listener {
                     remaining.setAmount(leftoverAmount);
                     inv.setItem(slot, remaining);
                     plugin.playConfigSound(player, "take", Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
+                    if (session != null && session.getContainerCenter() != null) {
+                        spawnItemTransferTrail(session.getContainerCenter(), player.getEyeLocation());
+                    }
                 }
             }
         }
@@ -368,6 +396,9 @@ public class QuickTakeListener implements Listener {
         if (depositedAny) {
             plugin.playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.8f);
             player.sendMessage(plugin.getMessageManager().getMessage("smart-deposit-success"));
+            if (session != null && session.getContainerCenter() != null) {
+                spawnItemTransferTrail(player.getEyeLocation(), session.getContainerCenter());
+            }
             session.saveHandInventory();
             session.update(true);
         }
@@ -397,6 +428,10 @@ public class QuickTakeListener implements Listener {
 
     private void spawnItemTransferTrail(Location from, Location to) {
         if (from == null || to == null || from.getWorld() == null) return;
+        if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
+            plugin.getLootGlowHook().triggerQuickActionParticles(from, to);
+            return;
+        }
         org.bukkit.World world = from.getWorld();
         org.bukkit.util.Vector vec = to.toVector().subtract(from.toVector());
         double length = vec.length();
@@ -408,5 +443,47 @@ public class QuickTakeListener implements Listener {
             Location pLoc = from.clone().add(step.clone().multiply(i));
             world.spawnParticle(org.bukkit.Particle.CRIT, pLoc, 2, 0.05, 0.05, 0.05, 0.02);
         }
+    }
+
+    private boolean isEquipment(ItemStack item) {
+        if (item == null) return false;
+        String name = item.getType().name();
+        return name.contains("HELMET") || name.contains("CHESTPLATE") || name.contains("LEGGINGS") || name.contains("BOOTS") || name.equals("ELYTRA") || name.equals("SHIELD");
+    }
+
+    private boolean tryQuickEquip(Player player, ItemStack item, Inventory inv, int slot, PeekSession session) {
+        if (!isEquipment(item)) return false;
+        org.bukkit.inventory.PlayerInventory pInv = player.getInventory();
+        String name = item.getType().name();
+        ItemStack currentEquip = null;
+        int equipSlot = -1;
+
+        if (name.contains("HELMET")) { currentEquip = pInv.getHelmet(); equipSlot = 0; }
+        else if (name.contains("CHESTPLATE") || name.equals("ELYTRA")) { currentEquip = pInv.getChestplate(); equipSlot = 1; }
+        else if (name.contains("LEGGINGS")) { currentEquip = pInv.getLeggings(); equipSlot = 2; }
+        else if (name.contains("BOOTS")) { currentEquip = pInv.getBoots(); equipSlot = 3; }
+        else if (name.equals("SHIELD")) { currentEquip = pInv.getItemInOffHand(); equipSlot = 4; }
+
+        if (equipSlot != -1) {
+            inv.setItem(slot, currentEquip);
+            if (equipSlot == 0) pInv.setHelmet(item.clone());
+            else if (equipSlot == 1) pInv.setChestplate(item.clone());
+            else if (equipSlot == 2) pInv.setLeggings(item.clone());
+            else if (equipSlot == 3) pInv.setBoots(item.clone());
+            else if (equipSlot == 4) pInv.setItemInOffHand(item.clone());
+
+            plugin.playConfigSound(player, "take", Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.7f, 1.0f);
+            if (session != null && session.getContainerCenter() != null) {
+                spawnItemTransferTrail(session.getContainerCenter(), player.getEyeLocation());
+            }
+            if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive() && session != null) {
+                plugin.getLootGlowHook().triggerItemPopJump(session.getContainerCenter(), item);
+            }
+            if (session != null && session.getBlock() != null) {
+                plugin.getContainerHistoryManager().recordAccess(session.getBlock().getLocation(), player.getName(), "Equipped " + item.getType().name());
+            }
+            return true;
+        }
+        return false;
     }
 }

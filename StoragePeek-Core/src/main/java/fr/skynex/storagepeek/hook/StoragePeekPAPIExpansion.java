@@ -5,7 +5,6 @@ import fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl;
 import fr.skynex.storagepeek.session.PeekSession;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Location;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;

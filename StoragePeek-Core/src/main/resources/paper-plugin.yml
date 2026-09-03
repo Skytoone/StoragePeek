@@ -1,0 +1,76 @@
+name: StoragePeek
+version: '${project.version}'
+main: fr.skynex.storagepeek.StoragePeek
+api-version: '1.21'
+description: A premium visual container peeking plugin using ItemDisplays.
+author: Skynex
+folia-supported: true
+
+dependencies:
+  server:
+    Oraxen:
+      load: BEFORE
+      required: false
+    Nexo:
+      load: BEFORE
+      required: false
+    ItemsAdder:
+      load: BEFORE
+      required: false
+    WorldGuard:
+      load: BEFORE
+      required: false
+    Lands:
+      load: BEFORE
+      required: false
+    GriefPrevention:
+      load: BEFORE
+      required: false
+    BentoBox:
+      load: BEFORE
+      required: false
+    SuperiorSkyblock2:
+      load: BEFORE
+      required: false
+    Towny:
+      load: BEFORE
+      required: false
+    LWC:
+      load: BEFORE
+      required: false
+    Residence:
+      load: BEFORE
+      required: false
+    CraftEngine:
+      load: BEFORE
+      required: false
+    CombatLogX:
+      load: BEFORE
+      required: false
+    CombatTagPlus:
+      load: BEFORE
+      required: false
+    PvPManager:
+      load: BEFORE
+      required: false
+    DeluxeCombat:
+      load: BEFORE
+      required: false
+    GriefDefender:
+      load: BEFORE
+      required: false
+    PlotSquared:
+      load: BEFORE
+      required: false
+    LootGlow:
+      load: BEFORE
+      required: false
+    VaultX:
+      load: BEFORE
+      required: false
+    SethomeX:
+      load: BEFORE
+      required: false
+    PlaceholderAPI:
+      load: BEFORE
+      required: false

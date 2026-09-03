@@ -66,6 +66,13 @@ public class PeekSession {
         ALL, RESOURCES, FOOD, EQUIPMENT
     }
     private FilterType activeFilter = FilterType.ALL;
+    private String rarityFilter = null;
+
+    public String getRarityFilter() { return rarityFilter; }
+    public void setRarityFilter(String rarityFilter) {
+        this.rarityFilter = rarityFilter;
+        syncInventory();
+    }
 
     private final Set<Material> preciousMaterials = new HashSet<>();
     private boolean themesEnabled;
@@ -104,6 +111,10 @@ public class PeekSession {
     private TextDisplay hoverLabel;
     private TextDisplay fillIndicator;
     private TextDisplay taglineBanner;
+    private TextDisplay lockIndicator;
+    private TextDisplay pageBanner;
+    private String searchQuery = null;
+    private int currentPage = 0;
     private int sortAnimationTicks = 0;
     private boolean cleanedUp = false;
     private boolean isSpawning = false;
@@ -442,6 +453,20 @@ public class PeekSession {
                         } else {
                             scaleMultiplier = renderEvent.getCustomScaleMultiplier();
                             customGlowColor = renderEvent.getGlowColor();
+                            if (customGlowColor == null && plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
+                                customGlowColor = plugin.getLootGlowHook().getRarityColor(item);
+                            }
+                            if (searchQuery != null && !searchQuery.isEmpty()) {
+                                String queryLower = searchQuery.toLowerCase().trim();
+                                boolean matchesSearch = item.getType().name().toLowerCase().contains(queryLower) ||
+                                    (item.hasItemMeta() && item.getItemMeta().hasDisplayName() && net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(item.getItemMeta().displayName()).toLowerCase().contains(queryLower));
+                                if (matchesSearch) {
+                                    scaleMultiplier *= 1.3f;
+                                    customGlowColor = org.bukkit.Color.fromRGB(255, 215, 0);
+                                } else {
+                                    scaleMultiplier *= 0.25f;
+                                }
+                            }
                         }
                     }
                 }
@@ -581,6 +606,71 @@ public class PeekSession {
                 });
                 anchor.addPassenger(taglineBanner);
                 showEntityToPlayer(taglineBanner);
+            }
+
+            if (plugin.getSethomeXHook() != null && plugin.getSethomeXHook().isActive() && block != null) {
+                String homeName = plugin.getSethomeXHook().getNearbyHomeName(player, block.getLocation());
+                if (homeName != null) {
+                    org.bukkit.entity.TextDisplay homeBanner = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
+                        plugin.tagDisplayEntity(ent);
+                        ent.setVisibleByDefault(false);
+                        ent.setBillboard(Display.Billboard.CENTER);
+                        ent.setBrightness(new Display.Brightness(15, 15));
+                        ent.setDefaultBackground(true);
+                        ent.setBackgroundColor(org.bukkit.Color.fromARGB(180, 20, 80, 160));
+                        ent.setAlignment(TextDisplay.TextAlignment.CENTER);
+                        ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                                .deserialize("§b🏠 [HOME CHEST: " + homeName + "]"));
+                        Transformation t = ent.getTransformation();
+                        t.getTranslation().set(0f, bgHeight / 2f + 0.65f, 0.05f);
+                        ent.setTransformation(t);
+                    });
+                    anchor.addPassenger(homeBanner);
+                    showEntityToPlayer(homeBanner);
+                }
+            }
+
+            if (plugin.getConfig().getBoolean("holograms.lock-indicator-enabled", true)) {
+                boolean isProtectedArea = (block != null && !plugin.getProtectionManager().canAccess(player, block.getLocation()));
+                String lockText = isProtectedArea ? "§c🔒 Locked §7(Protected)" : "§a🔓 Unlocked §7(Access Granted)";
+                org.bukkit.Color lockBg = isProtectedArea ? org.bukkit.Color.fromARGB(180, 150, 20, 20) : org.bukkit.Color.fromARGB(140, 20, 120, 20);
+
+                lockIndicator = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
+                    plugin.tagDisplayEntity(ent);
+                    ent.setVisibleByDefault(false);
+                    ent.setBillboard(Display.Billboard.CENTER);
+                    ent.setBrightness(new Display.Brightness(15, 15));
+                    ent.setDefaultBackground(true);
+                    ent.setBackgroundColor(lockBg);
+                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
+                    ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(lockText));
+                    Transformation t = ent.getTransformation();
+                    t.getTranslation().set(0f, bgHeight / 2f + 0.45f, 0.05f);
+                    t.getScale().set(0.8f, 0.8f, 0.8f);
+                    ent.setTransformation(t);
+                });
+                anchor.addPassenger(lockIndicator);
+                showEntityToPlayer(lockIndicator);
+            }
+
+            if (plugin.getConfig().getBoolean("holograms.pagination-enabled", true) && size > 27) {
+                int totalPages = (int) Math.ceil((double) size / 27);
+                String pageText = "§e◀ Page " + (currentPage + 1) + " / " + totalPages + " ▶  §7(/sp page next)";
+                pageBanner = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
+                    plugin.tagDisplayEntity(ent);
+                    ent.setVisibleByDefault(false);
+                    ent.setBillboard(Display.Billboard.CENTER);
+                    ent.setBrightness(new Display.Brightness(15, 15));
+                    ent.setDefaultBackground(true);
+                    ent.setBackgroundColor(org.bukkit.Color.fromARGB(160, 30, 30, 50));
+                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
+                    ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(pageText));
+                    Transformation t = ent.getTransformation();
+                    t.getTranslation().set(0f, -bgHeight / 2f - 0.42f, 0.05f);
+                    ent.setTransformation(t);
+                });
+                anchor.addPassenger(pageBanner);
+                showEntityToPlayer(pageBanner);
             }
         } finally {
             isSpawning = false;
@@ -791,6 +881,37 @@ public class PeekSession {
             }
         }
 
+        // Trigger LootGlow beacon beam on rich / special containers
+        if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive() && updateCounter % 15 == 0) {
+            if (theme == Theme.RICH || theme == Theme.ENDER) {
+                Location loc = block != null ? block.getLocation() : (entity != null ? entity.getLocation() : null);
+                if (loc != null) {
+                    org.bukkit.Color beamColor = (theme == Theme.RICH) ? org.bukkit.Color.fromRGB(255, 215, 0) : org.bukkit.Color.fromRGB(170, 0, 255);
+                    plugin.getLootGlowHook().spawnLootGlowBeaconBeam(loc, beamColor);
+                }
+            }
+        }
+
+        // Trigger LootGlow Mythic Vault particle aura for containers holding high rarity items
+        if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive() && updateCounter % 6 == 0 && inventory != null) {
+            int mythicCount = 0;
+            int legendaryCount = 0;
+            for (ItemStack st : inventory.getContents()) {
+                if (st != null && st.getType() != Material.AIR) {
+                    String r = plugin.getLootGlowHook().getItemRarity(st);
+                    if ("MYTHIC".equalsIgnoreCase(r)) mythicCount++;
+                    else if ("LEGENDARY".equalsIgnoreCase(r)) legendaryCount++;
+                }
+            }
+            if (mythicCount >= 3 || legendaryCount >= 5) {
+                Location loc = block != null ? block.getLocation() : (entity != null ? entity.getLocation() : null);
+                if (loc != null) {
+                    String highest = mythicCount >= 3 ? "MYTHIC" : "LEGENDARY";
+                    plugin.getLootGlowHook().spawnMythicVaultAura(loc, highest);
+                }
+            }
+        }
+
         // Fill Indicator empty/full particle feedback
         if (plugin.getConfig().getBoolean("visualizers.fill-indicator", true) && updateCounter % 8 == 0 && block != null && inventory != null) {
             int max = inventory.getSize();
@@ -919,6 +1040,11 @@ public class PeekSession {
 
             if (hasItem && hoverNameplateEnabled && hoverLabel != null && hoverLabel.isValid()) {
                 net.kyori.adventure.text.Component displayName = getItemDisplayName(hoveredItem);
+                if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
+                    String plain = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(displayName);
+                    String formatted = plugin.getLootGlowHook().formatRarityHoverLabel(hoveredItem, plain);
+                    displayName = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(formatted);
+                }
                 hoverLabel.text(displayName);
 
                 double xOff = 0;
@@ -1129,6 +1255,14 @@ public class PeekSession {
 
     private boolean matchesFilter(ItemStack item, FilterType filter) {
         if (item == null || item.getType() == Material.AIR) return true;
+        if (rarityFilter != null && !rarityFilter.isEmpty()) {
+            if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
+                String r = plugin.getLootGlowHook().getItemRarity(item);
+                if (r == null || !r.equalsIgnoreCase(rarityFilter)) {
+                    return false;
+                }
+            }
+        }
         if (filter == FilterType.ALL) return true;
         
         Material type = item.getType();
@@ -1319,6 +1453,17 @@ public class PeekSession {
         if (cleanedUp)
             return;
         cleanedUp = true;
+
+        Location soundLoc = getContainerCenter();
+        if (soundLoc != null && soundLoc.getWorld() != null) {
+            org.bukkit.Sound sound = switch (block != null ? block.getType() : Material.AIR) {
+                case ENDER_CHEST -> Sound.BLOCK_ENDER_CHEST_CLOSE;
+                case BARREL -> Sound.BLOCK_BARREL_CLOSE;
+                default -> Sound.BLOCK_CHEST_CLOSE;
+            };
+            soundLoc.getWorld().playSound(soundLoc, sound, 0.3f, 1.0f);
+        }
+
         if (background != null) {
             background.remove();
             background = null;
@@ -1374,6 +1519,19 @@ public class PeekSession {
         fr.skynex.storagepeek.util.FoliaScheduler.runLater(StoragePeek.getInstance(), player, () -> {
             if (cleanedUp || anchor == null || !anchor.isValid())
                 return;
+
+            Location soundLoc = getContainerCenter();
+            if (soundLoc != null && soundLoc.getWorld() != null) {
+                org.bukkit.Sound sound = switch (block != null ? block.getType() : Material.AIR) {
+                    case ENDER_CHEST -> Sound.BLOCK_ENDER_CHEST_OPEN;
+                    case BARREL -> Sound.BLOCK_BARREL_OPEN;
+                    case FURNACE, BLAST_FURNACE, SMOKER -> Sound.BLOCK_FURNACE_FIRE_CRACKLE;
+                    case BREWING_STAND -> Sound.BLOCK_BREWING_STAND_BREW;
+                    case ANVIL, CHIPPED_ANVIL, DAMAGED_ANVIL -> Sound.BLOCK_ANVIL_USE;
+                    default -> Sound.BLOCK_CHEST_OPEN;
+                };
+                soundLoc.getWorld().playSound(soundLoc, sound, 0.4f, 1.1f);
+            }
 
             if (background != null && background.isValid()) {
                 int rows = (int) Math.ceil((double) inventory.getSize() / columns);
@@ -1493,7 +1651,7 @@ public class PeekSession {
         }
     }
 
-    private Location getContainerCenter() {
+    public Location getContainerCenter() {
         if (containerCenter != null) {
             return containerCenter;
         }
@@ -2069,6 +2227,24 @@ public class PeekSession {
                 });
             }
         }
+    }
+
+    public String getSearchQuery() {
+        return searchQuery;
+    }
+
+    public void setSearchQuery(String searchQuery) {
+        this.searchQuery = searchQuery;
+        refresh();
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public void setCurrentPage(int currentPage) {
+        this.currentPage = Math.max(0, currentPage);
+        refresh();
     }
 
     public boolean isValid() {

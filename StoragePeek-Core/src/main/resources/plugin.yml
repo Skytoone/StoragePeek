@@ -5,7 +5,7 @@ api-version: '1.21'
 folia-supported: true
 author: Skynex
 description: A premium visual container peeking plugin using ItemDisplays.
-softdepend: [Oraxen, Nexo, ItemsAdder, WorldGuard, Lands, GriefPrevention, BentoBox, SuperiorSkyblock2, Towny, LWC, Residence, CraftEngine, CombatLogX, CombatTagPlus, PvPManager, DeluxeCombat, GriefDefender, PlotSquared]
+softdepend: [Oraxen, Nexo, ItemsAdder, WorldGuard, Lands, GriefPrevention, BentoBox, SuperiorSkyblock2, Towny, LWC, Residence, CraftEngine, CombatLogX, CombatTagPlus, PvPManager, DeluxeCombat, GriefDefender, PlotSquared, LootGlow, VaultX, Vault, SethomeX, PlaceholderAPI]
 commands:
   storagepeek:
     description: Main command for StoragePeek.
@@ -25,8 +25,22 @@ permissions:
       storagepeek.toggle: true
       storagepeek.themes: true
       storagepeek.filter: true
+      storagepeek.history: true
+      storagepeek.search: true
+      storagepeek.page: true
+      storagepeek.dashboard: true
+      storagepeek.vault: true
       storagepeek.bypass.combat: true
       storagepeek.bypass.protection: true
+  storagepeek.history:
+    description: Allows viewing 3D container audit logs (/storagepeek history).
+    default: op
+  storagepeek.search:
+    description: Allows interactive container item search (/storagepeek search).
+    default: true
+  storagepeek.page:
+    description: Allows switching 3D HUD pages (/storagepeek page).
+    default: true
   storagepeek.label:
     description: Allows attaching persistent 3D labels to container blocks (/storagepeek label).
     default: op

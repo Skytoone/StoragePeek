@@ -17,7 +17,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -293,18 +292,20 @@ public class RaycastTask extends BukkitRunnable {
         Location eyeLoc = player.getEyeLocation();
         org.bukkit.util.Vector dir = eyeLoc.getDirection();
 
+        double effectiveMaxDist = plugin.getPerformanceManager() != null ? plugin.getPerformanceManager().getAdaptiveMaxRaycastDistance(player, maxDist) : maxDist;
+
         RayTraceResult result;
         if (entitiesEnabled && !allowedEntities.isEmpty()) {
             result = player.getWorld().rayTrace(
                     eyeLoc,
                     dir,
-                    maxDist,
+                    effectiveMaxDist,
                     FluidCollisionMode.NEVER,
                     true,
                     0.1,
                     ent -> allowedEntities.contains(ent.getType()) && ent != player);
         } else {
-            result = player.getWorld().rayTraceBlocks(eyeLoc, dir, maxDist, FluidCollisionMode.NEVER, true);
+            result = player.getWorld().rayTraceBlocks(eyeLoc, dir, effectiveMaxDist, FluidCollisionMode.NEVER, true);
         }
 
         Block targetBlock = result != null ? result.getHitBlock() : null;

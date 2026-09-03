@@ -30,11 +30,17 @@ Built from the ground up for high performance, smooth interpolation, and broad p
 | Feature | Description |
 |---|---|
 | **Modern Display Entities** | Jitter-free 3D rendering powered by Minecraft `ItemDisplay`, `BlockDisplay`, and `TextDisplay` |
-| **Multi-Container Support** | Chests, Double Chests, Shulker Boxes, Barrels, End Chests, Furnaces, Dispensers, Droppers, Hoppers |
+| **Multi-Container Support** | Chests, Double Chests, Shulker Boxes, Barrels, End Chests, Furnaces, Dispensers, Droppers, Hoppers, Crafters, Chiseled Bookshelves |
 | **Custom Furniture & Items** | Seamless 3D previews for Oraxen, Nexo, ItemsAdder, and CraftEngine custom blocks & furniture |
 | **Category Item Filters** | Filter displayed items on the fly by category: `ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT` |
+| **Live 3D Item Search** | Highlight matching items in 3D (`/sp search`) with golden glow while fading non-matching items |
+| **3D Lock Status Badge** | Real-time `🔒 Locked` or `🔓 Unlocked` status badge based on claim & region protection permissions |
+| **3D Page Navigation** | Smooth 27-slot page banner (`◀ Page 1 / 2 ▶`) for 54-slot double chests & virtual vaults (`/sp page`) |
+| **3D Access Audit Log** | Floating 10-second audit hologram (`/sp history`) displaying recent container interaction logs |
 | **Quantity & Durability** | Integrated quantity stack badges and dynamic color-coded durability bars |
 | **Fill Level Indicator** | Displays percentage fill indicator below preview displays |
+| **Auto-LOD & Adaptive Performance** | Dynamic TPS monitoring & Elytra speed raycast scaling for ultra-smooth 20 TPS performance |
+| **3D Home Chest Markers** | Automatic `🏠 [HOME CHEST: Base]` 3D holographic badges attached to SethomeX home containers |
 
 ### ⚡ Interactive Quick Actions & Animations
 | Feature | Description |
@@ -42,6 +48,8 @@ Built from the ground up for high performance, smooth interpolation, and broad p
 | **Quick Take** | Instant item retrieval directly from the 3D preview without opening the GUI |
 | **Quick Deposit / Swap** | Deposit items or swap hand items directly with container slots |
 | **Smart Deposit** | Automatically deposit matching inventory items into the container |
+| **Configurable Click Mappings** | Map `TAKE` and `DEPOSIT` actions to custom left/right mouse clicks in `config.yml` |
+| **3D Utility Visualizers** | Live 3D item & progress rendering on Crafting Tables, Furnaces, Brewing Stands, Anvils, Lecterns & Jukeboxes |
 | **Container Animations** | Smooth chest lid animations when looking at or interacting with containers |
 | **Item Transfer Visualizer** | Particles and flying animation when items are transferred |
 
@@ -60,6 +68,9 @@ StoragePeek automatically respects server permissions and claim protection plugi
 
 | Plugin | Feature |
 |---|---|
+| **LootGlow** | Native rarity glow colors, beacon beams, mythic vault aura, item pop jump animation, rarity hover labels & magnet particles |
+| **VaultX** | 3D virtual vault previews (`/sp vault <n>`), locked vault holograms, deposit to vault, and wealth integration |
+| **SethomeX** | 3D Home Chest Markers (`🏠 [HOME CHEST: Base Alpha]`) attached to primary containers in player home locations |
 | **WorldGuard** | Respects region container access & chest flags |
 | **GriefPrevention** | Checks claim container permissions |
 | **Lands** | Checks land container access flags |
@@ -70,7 +81,9 @@ StoragePeek automatically respects server permissions and claim protection plugi
 | **BentoBox** | Checks island container access |
 | **SuperiorSkyblock2**| Respects island container permissions |
 | **GriefDefender** | Respects claim container access |
+| **Combat Tagging** | Automatic combat-culling hook (CombatLogX, CombatTagPlus, PvPManager, DeluxeCombat) |
 | **PlaceholderAPI** | Full PAPI expansion support for messages and UI |
+| **Paper 1.20.5+ / 1.21+** | Native `paper-plugin.yml` modern dependency graph loader |
 
 ---
 
@@ -238,14 +251,30 @@ public void onSlotHover(StoragePeekSlotHoverEvent event) {
 }
 ```
 
-#### Quick Deposit & Swap Events
+#### Quick Take & Quick Deposit Events
 ```java
+@EventHandler
+public void onQuickTake(StoragePeekQuickTakeEvent event) {
+    if (isProtectedVaultItem(event.getExtractedItem())) {
+        event.setCancelled(true);
+        event.getPlayer().sendMessage("§cYou cannot quick-take vault items!");
+    }
+}
+
 @EventHandler
 public void onQuickDeposit(StoragePeekQuickDepositEvent event) {
     if (isQuestItem(event.getDepositedItem())) {
         event.setCancelled(true);
         event.getPlayer().sendMessage("§cQuest items cannot be deposited in public vaults!");
     }
+}
+```
+
+#### 3D Pagination Event
+```java
+@EventHandler
+public void onPageChange(StoragePeekPageChangeEvent event) {
+    event.getPlayer().sendMessage("§eSwitched to 3D page " + (event.getNewPage() + 1));
 }
 ```
 
@@ -272,9 +301,15 @@ public void onRenderItem(StoragePeekRenderItemEvent event) {
 | `/storagepeek toggle` | `storagepeek.toggle` | `storagepeek.admin` (op) | Toggles 3D container preview on/off for player |
 | `/storagepeek themes` | `storagepeek.themes` | `storagepeek.admin` (op) | Opens the GUI theme selection menu |
 | `/storagepeek theme <name>` | `storagepeek.theme.<name>` | `storagepeek.theme.*` (op) | Sets player's active visual theme |
-| `/storagepeek filter <type>` | `storagepeek.filter` | `storagepeek.admin` (op) | Applies item filter (`ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT`) |
-| `/storagepeek find <item>` | `storagepeek.find` | `storagepeek.admin` (op) | Points floating 3D compass arrow to nearest container holding item |
-| `/storagepeek deposit [r]` | `storagepeek.deposit` | `storagepeek.admin` (op) | Auto-deposits matching inventory items into nearby containers |
+| `/storagepeek filter <type>` | `storagepeek.filter` | `storagepeek.admin` (op) | Applies item filter (`ALL`, `RESOURCES`, `FOOD`, `EQUIPMENT`, `rarity`) |
+| `/storagepeek filter rarity <r>` | `storagepeek.filter` | `storagepeek.admin` (op) | Filters 3D HUD to only show LootGlow items of target rarity (`MYTHIC`, `LEGENDARY`, etc.) |
+| `/storagepeek vault <n>` | `storagepeek.vault` | `storagepeek.vault` (op) | Previews VaultX virtual vault #n in 3D with Quick-Take/Deposit |
+| `/storagepeek dashboard [r]` | `storagepeek.dashboard` | `storagepeek.dashboard` (op) | Opens 54-slot base storage GUI listing all containers, fill %, value ($), & GPS |
+| `/storagepeek history` | `storagepeek.history` | `storagepeek.admin` (op) | Displays 3D container access audit hologram |
+| `/storagepeek search <query>` | `storagepeek.search` | `storagepeek.search` (true) | Highlights matching items in 3D with golden glow |
+| `/storagepeek page <n>` | `storagepeek.page` | `storagepeek.page` (true) | Switches 3D preview page for 54-slot containers |
+| `/storagepeek find <item>` | `storagepeek.find` | `storagepeek.admin` (op) | Points 3D compass & GPS particle trail to nearest container holding item |
+| `/storagepeek deposit [r|vault]` | `storagepeek.deposit` | `storagepeek.admin` (op) | Auto-deposits inventory items into nearby chests or VaultX virtual vaults |
 | `/storagepeek label <text>` | `storagepeek.label` | `storagepeek.admin` (op) | Attaches persistent 3D holographic label above container |
 | `/storagepeek createtheme <name>` | `storagepeek.createtheme` | `storagepeek.admin` (op) | Creates new 3D visual theme using held block |
 | `/storagepeek stats [r]` | `storagepeek.stats` | `storagepeek.admin` (op) | Spawns floating 3D base storage statistics dashboard |

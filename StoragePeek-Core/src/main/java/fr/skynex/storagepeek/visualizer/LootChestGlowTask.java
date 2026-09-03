@@ -3,9 +3,7 @@ package fr.skynex.storagepeek.visualizer;
 import fr.skynex.storagepeek.StoragePeek;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.loot.Lootable;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -30,40 +28,27 @@ public class LootChestGlowTask extends BukkitRunnable {
         Set<Location> glowingChests = new HashSet<>();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!player.isOnline()) continue;
+            if (!player.isOnline() || player.getWorld() == null) continue;
 
             Location pLoc = player.getLocation();
-            int px = pLoc.getBlockX();
-            int py = pLoc.getBlockY();
-            int pz = pLoc.getBlockZ();
-
-            // Scan blocks in a 6-block radius
             int radius = 6;
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dy = -3; dy <= 3; dy++) {
-                    for (int dz = -radius; dz <= radius; dz++) {
-                        int bx = px + dx;
-                        int by = py + dy;
-                        int bz = pz + dz;
+            double radiusSq = 36.0;
 
-                        // Quick bounding check to stay in world limits
-                        if (by < player.getWorld().getMinHeight() || by > player.getWorld().getMaxHeight()) {
-                            continue;
-                        }
+            int minChunkX = (pLoc.getBlockX() - radius) >> 4;
+            int maxChunkX = (pLoc.getBlockX() + radius) >> 4;
+            int minChunkZ = (pLoc.getBlockZ() - radius) >> 4;
+            int maxChunkZ = (pLoc.getBlockZ() + radius) >> 4;
 
-                        Block block = player.getWorld().getBlockAt(bx, by, bz);
-                        Material type = block.getType();
-                        String typeName = type.name();
-                        if (typeName.contains("CHEST") || typeName.contains("BARREL") || typeName.contains("SHULKER_BOX")) {
-                            Location bLoc = block.getLocation();
-                            if (glowingChests.contains(bLoc)) {
-                                continue;
-                            }
-
-                            if (block.getState() instanceof Lootable lootable) {
-                                if (lootable.getLootTable() != null) {
-                                    glowingChests.add(bLoc);
-                                }
+            org.bukkit.World world = player.getWorld();
+            for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+                for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                    if (!world.isChunkLoaded(cx, cz)) continue;
+                    org.bukkit.Chunk chunk = world.getChunkAt(cx, cz);
+                    for (org.bukkit.block.BlockState state : chunk.getTileEntities()) {
+                        if (state instanceof Lootable lootable && lootable.getLootTable() != null) {
+                            Location bLoc = state.getLocation();
+                            if (bLoc.distanceSquared(pLoc) <= radiusSq) {
+                                glowingChests.add(bLoc);
                             }
                         }
                     }
@@ -74,7 +59,7 @@ public class LootChestGlowTask extends BukkitRunnable {
         // Spawn particles around found unopened loot containers
         for (Location loc : glowingChests) {
             Location center = loc.clone().add(0.5, 0.6, 0.5);
-            // Spawn 3 golden wax off particles
+            // Spawn 2 golden wax off particles
             loc.getWorld().spawnParticle(Particle.WAX_OFF, center, 2, 0.35, 0.35, 0.35, 0.05);
         }
     }

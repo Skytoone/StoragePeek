@@ -14,7 +14,6 @@ import org.bukkit.Material;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.List;
@@ -37,6 +36,7 @@ public final class StoragePeek extends JavaPlugin {
     private fr.skynex.storagepeek.visualizer.VisualizerManager visualizerManager;
     private fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask lootChestGlowTaskHandle;
     private fr.skynex.storagepeek.manager.ContainerHistoryManager containerHistoryManager;
+    private fr.skynex.storagepeek.hook.LootGlowHook lootGlowHook;
 
     // Configuration values (Cached for performance)
     private double maxDistance;
@@ -93,8 +93,25 @@ public final class StoragePeek extends JavaPlugin {
     private boolean protectionHooksEnabled;
     private final java.util.Map<String, Boolean> protectionHookFlags = new java.util.HashMap<>();
 
+    private fr.skynex.storagepeek.hook.VaultXHook vaultXHook;
+    private fr.skynex.storagepeek.hook.SethomeXHook sethomeXHook;
+    private fr.skynex.storagepeek.manager.AdaptivePerformanceManager performanceManager;
+
+    public fr.skynex.storagepeek.hook.VaultXHook getVaultXHook() {
+        return vaultXHook;
+    }
+
+    public fr.skynex.storagepeek.hook.SethomeXHook getSethomeXHook() {
+        return sethomeXHook;
+    }
+
+    public fr.skynex.storagepeek.manager.AdaptivePerformanceManager getPerformanceManager() {
+        return performanceManager;
+    }
+
 
     private fr.skynex.storagepeek.listener.ExhibitionFrameListener exhibitionFrameListener;
+    private fr.skynex.storagepeek.gui.StorageDashboardGUI storageDashboardGUI;
 
     @Override
     public void onEnable() {
@@ -107,8 +124,13 @@ public final class StoragePeek extends JavaPlugin {
         this.messageManager = new MessageManager(this);
         this.protectionManager = new ProtectionManager();
         this.hookManager = new HookManager();
+        this.lootGlowHook = new fr.skynex.storagepeek.hook.LootGlowHook();
+        this.vaultXHook = new fr.skynex.storagepeek.hook.VaultXHook();
+        this.sethomeXHook = new fr.skynex.storagepeek.hook.SethomeXHook();
+        this.performanceManager = new fr.skynex.storagepeek.manager.AdaptivePerformanceManager(this);
         this.containerHistoryManager = new fr.skynex.storagepeek.manager.ContainerHistoryManager();
         this.visualizerManager = new fr.skynex.storagepeek.visualizer.VisualizerManager(this);
+        this.storageDashboardGUI = new fr.skynex.storagepeek.gui.StorageDashboardGUI(this);
         loadConfigurationCache();
 
         fr.skynex.storagepeek.api.StoragePeekProvider.setInstance(new fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl(this));
@@ -254,6 +276,23 @@ public final class StoragePeek extends JavaPlugin {
                             return true;
                         }
                         String wanted = args[1].toUpperCase().trim();
+                        if (args.length > 1 && args[1].equalsIgnoreCase("rarity")) {
+                            PeekSession session = activeSessions.get(player.getUniqueId());
+                            if (session == null) {
+                                player.sendMessage("§cYou must be looking at a container to apply a rarity filter.");
+                                return true;
+                            }
+                            String rarity = args.length > 2 ? args[2].toUpperCase() : "RESET";
+                            if ("RESET".equals(rarity) || "CLEAR".equals(rarity) || "ALL".equals(rarity)) {
+                                session.setRarityFilter(null);
+                                player.sendMessage("§a[StoragePeek] Rarity filter reset!");
+                            } else {
+                                session.setRarityFilter(rarity);
+                                player.sendMessage("§a[StoragePeek] Set 3D rarity filter to §e" + rarity + "§a!");
+                            }
+                            playConfigSound(player, "sort", org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.3f);
+                            return true;
+                        }
                         try {
                             fr.skynex.storagepeek.session.PeekSession.FilterType filter = 
                                 fr.skynex.storagepeek.session.PeekSession.FilterType.valueOf(wanted);
@@ -267,8 +306,19 @@ public final class StoragePeek extends JavaPlugin {
                                 player.sendMessage("§cYou must be looking at a container to apply a filter.");
                             }
                         } catch (Exception ex) {
-                            player.sendMessage("§cInvalid filter type! Choose from: ALL, RESOURCES, FOOD, EQUIPMENT");
+                            player.sendMessage("§cInvalid filter type! Choose from: ALL, RESOURCES, FOOD, EQUIPMENT, or /sp filter rarity <MYTHIC|LEGENDARY|EPIC|RARE|UNCOMMON|COMMON>");
                         }
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("dashboard")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        int radius = 25;
+                        if (args.length > 1) {
+                            try { radius = Math.min(64, Math.max(5, Integer.parseInt(args[1]))); } catch (NumberFormatException ignored) {}
+                        }
+                        if (storageDashboardGUI != null) storageDashboardGUI.openDashboard(player, radius);
                         return true;
                     } else if (args.length > 0 && args[0].equalsIgnoreCase("purge")) {
                         if (!sender.hasPermission("storagepeek.purge") && !sender.hasPermission("storagepeek.admin")) {
@@ -305,6 +355,7 @@ public final class StoragePeek extends JavaPlugin {
                         org.bukkit.block.Block nearest = containers.get(0);
                         player.sendMessage("§aFound " + containers.size() + " container(s) with " + mat.name() + "! Pointing compass arrow to nearest container.");
                         getRaycastTask().setCompassTarget(player, nearest.getLocation().add(0.5, 0.5, 0.5));
+                        startGPSWaypointTask(player, nearest);
                         playConfigSound(player, "sort", Sound.ITEM_LODESTONE_COMPASS_LOCK, 0.8f, 1.2f);
                         return true;
                     } else if (args.length > 0 && args[0].equalsIgnoreCase("deposit")) {
@@ -316,6 +367,35 @@ public final class StoragePeek extends JavaPlugin {
                             player.sendMessage(messageManager.getMessage("no-permission"));
                             return true;
                         }
+                        if (args.length > 1 && args[1].equalsIgnoreCase("vault")) {
+                            org.bukkit.inventory.Inventory enderChest = player.getEnderChest();
+                            int deposited = 0;
+                            for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+                                org.bukkit.inventory.ItemStack item = player.getInventory().getItem(slot);
+                                if (item == null || item.getType() == Material.AIR) continue;
+                                if (enderChest.contains(item.getType())) {
+                                    java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> remaining = enderChest.addItem(item);
+                                    if (remaining.isEmpty()) {
+                                        deposited += item.getAmount();
+                                        player.getInventory().setItem(slot, null);
+                                    } else {
+                                        int dep = item.getAmount() - remaining.get(0).getAmount();
+                                        if (dep > 0) {
+                                            deposited += dep;
+                                            player.getInventory().setItem(slot, remaining.get(0));
+                                        }
+                                    }
+                                }
+                            }
+                            if (deposited > 0) {
+                                player.sendMessage("§a[StoragePeek] Deposited " + deposited + " items directly into your VaultX Virtual Vault!");
+                                playConfigSound(player, "deposit", Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.2f);
+                            } else {
+                                player.sendMessage("§e[StoragePeek] No matching items found to deposit into your VaultX Virtual Vault.");
+                            }
+                            return true;
+                        }
+
                         int radius = 16;
                         if (args.length > 1) {
                             try {
@@ -330,6 +410,138 @@ public final class StoragePeek extends JavaPlugin {
                         } else {
                             player.sendMessage("§e[StoragePeek] No matching container slots found nearby for items in your inventory.");
                         }
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("vault")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.vault") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        int vaultNum = 1;
+                        if (args.length > 1) {
+                            try { vaultNum = Math.max(1, Integer.parseInt(args[1])); } catch (NumberFormatException ignored) {}
+                        }
+                        if (vaultXHook != null && !vaultXHook.hasVaultPermission(player, vaultNum)) {
+                            player.sendMessage("§c🔒 Vault #" + vaultNum + " is locked! Purchase or unlock it via VaultX.");
+                            playConfigSound(player, "sort", Sound.BLOCK_CHEST_LOCKED, 0.8f, 1.0f);
+                            return true;
+                        }
+                        org.bukkit.inventory.Inventory vaultInv = vaultXHook != null ? vaultXHook.getPlayerEnderChestOrVault(player, vaultNum) : player.getEnderChest();
+                        boolean success = fr.skynex.storagepeek.api.StoragePeekProvider.get() != null && fr.skynex.storagepeek.api.StoragePeekProvider.get().openVirtualPeekSession(player, vaultInv, "§6🏦 VaultX Vault #" + vaultNum);
+                        if (success) {
+                            player.sendMessage("§a[StoragePeek] Displaying 3D virtual preview for VaultX Vault #" + vaultNum + "!");
+                            playConfigSound(player, "sort", Sound.BLOCK_ENDER_CHEST_OPEN, 0.8f, 1.2f);
+                        }
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("history")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.history") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        org.bukkit.block.Block targetBlock = player.getTargetBlockExact(5);
+                        if (targetBlock == null || (!getHookManager().isCustomContainer(targetBlock) && !getRaycastTask().getAllowedBlocks().contains(targetBlock.getType()))) {
+                            player.sendMessage("§cYou must be looking at a valid container block within 5 blocks!");
+                            return true;
+                        }
+                        java.util.List<fr.skynex.storagepeek.manager.ContainerHistoryManager.AccessLog> logs = containerHistoryManager.getLogs(targetBlock.getLocation());
+                        if (logs.isEmpty()) {
+                            player.sendMessage(messageManager.getMessage("history-empty"));
+                            return true;
+                        }
+                        StringBuilder sb = new StringBuilder("§6§l📜 CONTAINER ACCESS HISTORY\n");
+                        long now = System.currentTimeMillis();
+                        for (fr.skynex.storagepeek.manager.ContainerHistoryManager.AccessLog log : logs) {
+                            long secAgo = Math.max(1, (now - log.timestamp()) / 1000);
+                            String agoStr = secAgo < 60 ? secAgo + "s ago" : (secAgo / 60) + "m ago";
+                            sb.append("§7• §e").append(log.playerName()).append(" §7- ").append(log.action()).append(" §8(").append(agoStr).append(")\n");
+                        }
+                        final String historyText = sb.toString().trim();
+
+                        Location loc = targetBlock.getLocation().add(0.5, 1.35, 0.5);
+                        org.bukkit.entity.TextDisplay textDisplay = loc.getWorld().spawn(loc, org.bukkit.entity.TextDisplay.class, ent -> {
+                            tagDisplayEntity(ent);
+                            ent.setVisibleByDefault(false);
+                            ent.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+                            ent.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+                            ent.setDefaultBackground(true);
+                            ent.setBackgroundColor(org.bukkit.Color.fromARGB(200, 20, 20, 30));
+                            ent.setAlignment(org.bukkit.entity.TextDisplay.TextAlignment.CENTER);
+                            ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(historyText));
+                            org.bukkit.util.Transformation t = ent.getTransformation();
+                            t.getScale().set(0.7f, 0.7f, 0.7f);
+                            ent.setTransformation(t);
+                        });
+                        player.showEntity(this, textDisplay);
+                        playConfigSound(player, "sort", Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 1.2f);
+                        player.sendMessage("§a[StoragePeek] Displaying 3D audit hologram above container!");
+
+                        fr.skynex.storagepeek.util.FoliaScheduler.runLater(this, player, () -> {
+                            if (textDisplay.isValid()) {
+                                textDisplay.remove();
+                            }
+                        }, 200L);
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("search")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.search") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        PeekSession session = activeSessions.get(player.getUniqueId());
+                        if (session == null) {
+                            player.sendMessage("§cYou must be looking at a container to use search!");
+                            return true;
+                        }
+                        if (args.length < 2 || args[1].equalsIgnoreCase("reset") || args[1].equalsIgnoreCase("clear")) {
+                            session.setSearchQuery(null);
+                            player.sendMessage(messageManager.getMessage("search-cleared"));
+                            playConfigSound(player, "sort", Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.0f);
+                        } else {
+                            String query = args[1].trim();
+                            session.setSearchQuery(query);
+                            player.sendMessage(messageManager.getMessage("search-updated").replace("{query}", query));
+                            playConfigSound(player, "sort", Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.4f);
+                        }
+                        return true;
+                    } else if (args.length > 0 && args[0].equalsIgnoreCase("page")) {
+                        if (!(sender instanceof Player player)) {
+                            sender.sendMessage(messageManager.getMessage("only-players"));
+                            return true;
+                        }
+                        if (!player.hasPermission("storagepeek.page") && !player.hasPermission("storagepeek.admin")) {
+                            player.sendMessage(messageManager.getMessage("no-permission"));
+                            return true;
+                        }
+                        PeekSession session = activeSessions.get(player.getUniqueId());
+                        if (session == null) {
+                            player.sendMessage("§cYou must be looking at a container to change pages!");
+                            return true;
+                        }
+                        int targetPage = session.getCurrentPage();
+                        if (args.length > 1) {
+                            if (args[1].equalsIgnoreCase("next")) {
+                                targetPage++;
+                            } else if (args[1].equalsIgnoreCase("prev") || args[1].equalsIgnoreCase("previous")) {
+                                targetPage = Math.max(0, targetPage - 1);
+                            } else {
+                                try {
+                                    targetPage = Math.max(0, Integer.parseInt(args[1]) - 1);
+                                } catch (NumberFormatException ignored) {}
+                            }
+                        }
+                        session.setCurrentPage(targetPage);
+                        player.sendMessage(messageManager.getMessage("page-updated").replace("{page}", String.valueOf(targetPage + 1)));
+                        playConfigSound(player, "sort", Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.5f, 1.2f);
                         return true;
                     } else if (args.length > 0 && (args[0].equalsIgnoreCase("label") || args[0].equalsIgnoreCase("unlabel"))) {
                         if (!(sender instanceof Player player)) {
@@ -414,6 +626,9 @@ public final class StoragePeek extends JavaPlugin {
                     sender.sendMessage(messageManager.getMessage("usage-toggle"));
                     sender.sendMessage(messageManager.getMessage("usage-themes"));
                     sender.sendMessage(messageManager.getMessage("usage-filter"));
+                    sender.sendMessage(messageManager.getMessage("usage-history"));
+                    sender.sendMessage(messageManager.getMessage("usage-search"));
+                    sender.sendMessage(messageManager.getMessage("usage-page"));
                     sender.sendMessage("§e/storagepeek label <text> §7- Attach persistent 3D label to targeted container.");
                     sender.sendMessage("§e/storagepeek createtheme <name> §7- Create new 3D theme using held block.");
                     sender.sendMessage("§e/storagepeek stats [radius] §7- Display 3D base storage statistics dashboard.");
@@ -425,16 +640,32 @@ public final class StoragePeek extends JavaPlugin {
 
                 spCommand.setTabCompleter((sender, command, alias, args) -> {
                     if (args.length == 1) {
-                        List<String> subCommands = Arrays.asList("reload", "toggle", "themes", "theme", "filter", "label", "unlabel", "createtheme", "stats", "find", "deposit", "purge");
+                        List<String> subCommands = Arrays.asList("reload", "toggle", "themes", "theme", "filter", "vault", "dashboard", "history", "search", "page", "label", "unlabel", "createtheme", "stats", "find", "deposit", "purge");
                         return subCommands.stream().filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase())).toList();
+                    }
+                    if (args.length == 2 && args[0].equalsIgnoreCase("deposit")) {
+                        List<String> depositOptions = Arrays.asList("vault", "16", "32");
+                        return depositOptions.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
                     }
                     if (args.length == 2 && args[0].equalsIgnoreCase("theme")) {
                         List<String> validThemes = Arrays.asList("default", "ender", "rich", "aqua", "nether", "neon", "cyberpunk", "rainbow");
                         return validThemes.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
                     }
                     if (args.length == 2 && args[0].equalsIgnoreCase("filter")) {
-                        List<String> validFilters = Arrays.asList("ALL", "RESOURCES", "FOOD", "EQUIPMENT");
+                        List<String> validFilters = Arrays.asList("ALL", "RESOURCES", "FOOD", "EQUIPMENT", "rarity");
                         return validFilters.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
+                    }
+                    if (args.length == 3 && args[0].equalsIgnoreCase("filter") && args[1].equalsIgnoreCase("rarity")) {
+                        List<String> rarities = Arrays.asList("MYTHIC", "LEGENDARY", "EPIC", "RARE", "UNCOMMON", "COMMON", "RESET");
+                        return rarities.stream().filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase())).toList();
+                    }
+                    if (args.length == 2 && args[0].equalsIgnoreCase("search")) {
+                        List<String> searchOptions = Arrays.asList("reset", "clear");
+                        return searchOptions.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
+                    }
+                    if (args.length == 2 && args[0].equalsIgnoreCase("page")) {
+                        List<String> pageOptions = Arrays.asList("next", "prev", "1", "2");
+                        return pageOptions.stream().filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase())).toList();
                     }
                     return Collections.emptyList();
                 });
@@ -499,6 +730,10 @@ public final class StoragePeek extends JavaPlugin {
 
     public HookManager getHookManager() {
         return hookManager;
+    }
+
+    public fr.skynex.storagepeek.hook.LootGlowHook getLootGlowHook() {
+        return lootGlowHook;
     }
 
     public MessageManager getMessageManager() {
@@ -718,6 +953,9 @@ public final class StoragePeek extends JavaPlugin {
                 }
             }
         }
+        if (protectionManager != null) protectionManager.reloadHooks();
+        if (hookManager != null) hookManager.reloadHooks();
+        if (lootGlowHook != null) lootGlowHook.init();
     }
 
     private org.bukkit.Color parseColor(String str, org.bukkit.Color defaultColor) {
@@ -952,6 +1190,9 @@ public final class StoragePeek extends JavaPlugin {
                         totalDeposited += item.getAmount();
                         player.getInventory().setItem(slot, null);
                         containerBlock.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, containerBlock.getLocation().add(0.5, 1.0, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                        if (lootGlowHook != null && lootGlowHook.isActive()) {
+                            lootGlowHook.triggerMagnetAbsorptionEffect(player.getLocation(), containerBlock.getLocation().add(0.5, 0.5, 0.5));
+                        }
                         break;
                     } else {
                         int deposited = item.getAmount() - remaining.get(0).getAmount();
@@ -959,6 +1200,9 @@ public final class StoragePeek extends JavaPlugin {
                             totalDeposited += deposited;
                             player.getInventory().setItem(slot, remaining.get(0));
                             containerBlock.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, containerBlock.getLocation().add(0.5, 1.0, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
+                            if (lootGlowHook != null && lootGlowHook.isActive()) {
+                                lootGlowHook.triggerMagnetAbsorptionEffect(player.getLocation(), containerBlock.getLocation().add(0.5, 0.5, 0.5));
+                            }
                         }
                     }
                 }
@@ -1037,5 +1281,37 @@ public final class StoragePeek extends JavaPlugin {
                 statsHolo.remove();
             }
         }, 300L); // 15 seconds
+    }
+
+    public void startGPSWaypointTask(Player player, org.bukkit.block.Block targetBlock) {
+        if (player == null || targetBlock == null || targetBlock.getWorld() == null) return;
+        Location targetLoc = targetBlock.getLocation().add(0.5, 1.5, 0.5);
+        
+        org.bukkit.entity.TextDisplay waypoint = targetLoc.getWorld().spawn(targetLoc, org.bukkit.entity.TextDisplay.class, ent -> {
+            tagDisplayEntity(ent);
+            ent.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize("§e📍 [GPS TARGET CHEST]\n§f" + targetBlock.getType().name()));
+            ent.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            ent.setBackgroundColor(org.bukkit.Color.fromARGB(180, 20, 20, 20));
+        });
+
+        fr.skynex.storagepeek.util.FoliaScheduler.RepeatingTask task = fr.skynex.storagepeek.util.FoliaScheduler.runTimer(this, player, () -> {
+            if (!player.isOnline()) return;
+            Location pLoc = player.getLocation().add(0, 1.0, 0);
+            org.bukkit.util.Vector vec = targetLoc.toVector().subtract(pLoc.toVector());
+            double length = vec.length();
+            if (length < 0.8) return;
+            org.bukkit.util.Vector dir = vec.normalize().multiply(0.4);
+            int points = (int) (length / 0.4);
+
+            for (int i = 0; i < Math.min(20, points); i++) {
+                Location p = pLoc.clone().add(dir.clone().multiply(i));
+                p.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, p, 1, 0.02, 0.02, 0.02, 0.01);
+            }
+        }, 1L, 10L);
+
+        fr.skynex.storagepeek.util.FoliaScheduler.runLater(this, player, () -> {
+            task.cancel();
+            if (waypoint.isValid()) waypoint.remove();
+        }, 300L);
     }
 }

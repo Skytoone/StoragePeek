@@ -31,6 +31,7 @@ public class VisualizerSession {
     private BlockDisplay progressBarBg;
     private BlockDisplay progressBarVal;
     private org.bukkit.entity.TextDisplay lecternTag;
+    private org.bukkit.entity.TextDisplay jukeboxTag;
     private boolean cleanedUp = false;
     private int tickCounter = 0;
     private org.bukkit.block.BlockFace blockFacing = org.bukkit.block.BlockFace.NORTH;
@@ -338,6 +339,15 @@ public class VisualizerSession {
         });
         registerDisplay(display);
         itemDisplays.put(0, display);
+
+        Location tagLoc = getOffsetLoc(0.0, 1.40, 0.0);
+        jukeboxTag = tagLoc.getWorld().spawn(tagLoc, org.bukkit.entity.TextDisplay.class, ent -> {
+            ent.setBillboard(Display.Billboard.CENTER);
+            ent.setBrightness(new Display.Brightness(15, 15));
+            ent.setDefaultBackground(true);
+            ent.setBackgroundColor(org.bukkit.Color.fromARGB(180, 20, 20, 20));
+        });
+        registerDisplay(jukeboxTag);
     }
 
     private void setupLecternDisplays() {
@@ -519,6 +529,7 @@ public class VisualizerSession {
                 if (record == null || record.getType() == Material.AIR) {
                     if (!dispEmpty)
                         display.setItemStack(null);
+                    if (jukeboxTag != null && jukeboxTag.isValid()) jukeboxTag.text(net.kyori.adventure.text.Component.empty());
                 } else {
                     if (dispEmpty || !record.isSimilar(currentDisplayItem)) {
                         display.setItemStack(record.clone());
@@ -528,9 +539,14 @@ public class VisualizerSession {
                     t.getLeftRotation().rotationXYZ((float) Math.toRadians(-90), 0.0f, angle);
                     display.setTransformation(t);
 
-                    if (jb.isPlaying() && tickCounter % 4 == 0) {
-                        block.getWorld().spawnParticle(Particle.NOTE, getOffsetLoc(0.0, 1.15, 0.0), 1, 0.15, 0.1, 0.15,
-                                0.1);
+                    if (jukeboxTag != null && jukeboxTag.isValid()) {
+                        String discName = record.getType().name().replace("MUSIC_DISC_", "").replace("_", " ");
+                        jukeboxTag.text(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize("§d🎵 Playing: §f" + discName));
+                    }
+
+                    if (jb.isPlaying() && tickCounter % 3 == 0) {
+                        double noteColor = (tickCounter % 24) / 24.0;
+                        block.getWorld().spawnParticle(Particle.NOTE, getOffsetLoc(0.0, 1.25, 0.0), 1, noteColor, 0.0, 0.0, 1.0);
                     }
                 }
             }

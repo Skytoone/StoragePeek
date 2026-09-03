@@ -243,21 +243,28 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
     @NotNull
     public List<Block> findNearbyContainers(@NotNull Location center, double radius, @NotNull Material material) {
         List<Block> result = new ArrayList<>();
-        if (center.getWorld() == null) return result;
+        org.bukkit.World world = center.getWorld();
+        if (world == null) return result;
 
-        int blockRadius = (int) Math.ceil(radius);
-        int bx = center.getBlockX();
-        int by = center.getBlockY();
-        int bz = center.getBlockZ();
+        int minChunkX = (center.getBlockX() - (int) radius) >> 4;
+        int maxChunkX = (center.getBlockX() + (int) radius) >> 4;
+        int minChunkZ = (center.getBlockZ() - (int) radius) >> 4;
+        int maxChunkZ = (center.getBlockZ() + (int) radius) >> 4;
 
-        for (int x = bx - blockRadius; x <= bx + blockRadius; x++) {
-            for (int y = Math.max(center.getWorld().getMinHeight(), by - blockRadius); y <= Math.min(center.getWorld().getMaxHeight(), by + blockRadius); y++) {
-                for (int z = bz - blockRadius; z <= bz + blockRadius; z++) {
-                    Block block = center.getWorld().getBlockAt(x, y, z);
-                    if (plugin.getHookManager().isCustomContainer(block) || plugin.getRaycastTask().getAllowedBlocks().contains(block.getType())) {
-                        Inventory inv = plugin.getHookManager().getInventory(block, null);
-                        if (inv != null && inv.contains(material)) {
-                            result.add(block);
+        double radiusSq = radius * radius;
+
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                if (!world.isChunkLoaded(cx, cz)) continue;
+                org.bukkit.Chunk chunk = world.getChunkAt(cx, cz);
+                for (org.bukkit.block.BlockState state : chunk.getTileEntities()) {
+                    Block block = state.getBlock();
+                    if (block.getLocation().distanceSquared(center) <= radiusSq) {
+                        if (plugin.getHookManager().isCustomContainer(block) || plugin.getRaycastTask().getAllowedBlocks().contains(block.getType())) {
+                            Inventory inv = plugin.getHookManager().getInventory(block, null);
+                            if (inv != null && inv.contains(material)) {
+                                result.add(block);
+                            }
                         }
                     }
                 }

@@ -105,6 +105,12 @@ holograms:
   # Display the durability bars for damaged tools/weapons/armor on the HUD
   durability-bars-enabled: true
 
+  # Display the 3D lock status label (🔒 Unlocked / 🔒 Locked) above protected containers
+  lock-indicator-enabled: true
+
+  # Enable 3D page navigation (◀ Page 1 / 2 ▶) for large 54-slot double chests and vaults
+  pagination-enabled: true
+
   # Durability color/material settings for different durability percentages (high/medium/low)
   durability-colors:
     high: LIME_CONCRETE
@@ -272,4 +278,36 @@ visualizers:
   hopper-transfer: true
   fill-indicator: true
   chiseled-bookshelf: true
+
+# --- LootGlow Integration ---
+lootglow:
+  enabled: true
+  rarity-glow-colors: true
+  beacon-beams: true
+  mythic-vault-aura: true
+  quick-take-pop-jump: true
+  rarity-hover-labels: true
+  deposit-magnet-particles: true
+
+# --- VaultX Integration ---
+vaultx:
+  enabled: true
+  enable-virtual-peek: true
+  deposit-to-vault: true
+  locked-vault-badge: true
+  wealth-summary: true
+
+# --- SethomeX Integration ---
+sethomex:
+  enabled: true
+  3d-home-chest-markers: true
+
+# --- Adaptive Performance ---
+adaptive-performance:
+  enabled: true
+  tps-scaling: true
+  elytra-speed-scaling: true
+  min-raycast-distance: 2.5
+
+
 

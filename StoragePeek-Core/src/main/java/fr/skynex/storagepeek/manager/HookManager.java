@@ -24,6 +24,11 @@ public class HookManager {
     private final List<fr.skynex.storagepeek.api.provider.CustomContainerProvider> customContainerProviders = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public HookManager() {
+        reloadHooks();
+    }
+
+    public void reloadHooks() {
+        activeHooks.clear();
         registerHook("Oraxen", "fr.skynex.storagepeek.hook.OraxenHook");
         registerHook("Nexo", "fr.skynex.storagepeek.hook.NexoHook");
         registerHook("ItemsAdder", "fr.skynex.storagepeek.hook.ItemsAdderHook");
