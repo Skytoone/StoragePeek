@@ -320,9 +320,8 @@ public class StoragePeekAPIImpl implements StoragePeekAPI {
             return containerTaglines.get(entity.getUniqueId());
         }
         if (block != null && block.getState() instanceof org.bukkit.block.TileState tileState) {
-            org.bukkit.NamespacedKey labelKey = new org.bukkit.NamespacedKey(plugin, "custom_label");
-            if (tileState.getPersistentDataContainer().has(labelKey, org.bukkit.persistence.PersistentDataType.STRING)) {
-                return tileState.getPersistentDataContainer().get(labelKey, org.bukkit.persistence.PersistentDataType.STRING);
+            if (tileState.getPersistentDataContainer().has(plugin.getLabelKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
+                return tileState.getPersistentDataContainer().get(plugin.getLabelKey(), org.bukkit.persistence.PersistentDataType.STRING);
             }
         }
         return null;

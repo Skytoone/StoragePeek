@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -19,11 +20,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class StorageDashboardGUI implements Listener {
 
     private final StoragePeek plugin;
-    private final Map<Integer, Block> slotToBlock = new HashMap<>();
+    private final Map<UUID, Map<Integer, Block>> playerSlotToBlock = new ConcurrentHashMap<>();
 
     public StorageDashboardGUI(StoragePeek plugin) {
         this.plugin = plugin;
@@ -36,7 +39,7 @@ public class StorageDashboardGUI implements Listener {
 
     public void openDashboard(Player player, int radius) {
         Inventory inv = Bukkit.createInventory(null, 54, text("§8📦 Base Storage Dashboard"));
-        slotToBlock.clear();
+        Map<Integer, Block> slotToBlock = new HashMap<>();
 
         List<Block> containers = findContainersInRadius(player.getLocation(), radius, player);
         int slot = 0;
@@ -110,6 +113,7 @@ public class StorageDashboardGUI implements Listener {
         }
         inv.setItem(49, vaultItem);
 
+        playerSlotToBlock.put(player.getUniqueId(), slotToBlock);
         player.openInventory(inv);
         plugin.playConfigSound(player, "hover", Sound.BLOCK_LEVER_CLICK, 0.5f, 1.2f);
     }
@@ -152,7 +156,8 @@ public class StorageDashboardGUI implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         int slot = event.getRawSlot();
 
-        if (slotToBlock.containsKey(slot)) {
+        Map<Integer, Block> slotToBlock = playerSlotToBlock.get(player.getUniqueId());
+        if (slotToBlock != null && slotToBlock.containsKey(slot)) {
             Block target = slotToBlock.get(slot);
             if (target != null) {
                 player.closeInventory();
@@ -162,6 +167,13 @@ public class StorageDashboardGUI implements Listener {
                         .replace("%y%", String.valueOf(target.getY()))
                         .replace("%z%", String.valueOf(target.getZ())));
             }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (event.getPlayer() instanceof Player player) {
+            playerSlotToBlock.remove(player.getUniqueId());
         }
     }
 }

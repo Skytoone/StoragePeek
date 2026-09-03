@@ -1,7 +1,6 @@
 package fr.skynex.storagepeek.manager;
 
 import fr.skynex.storagepeek.StoragePeek;
-import net.md_5.bungee.api.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -70,10 +69,14 @@ public class MessageManager {
         Matcher matcher = HEX_PATTERN.matcher(message);
         StringBuilder builder = new StringBuilder(message.length() + 32);
         while (matcher.find()) {
-            String group = matcher.group(1);
-            matcher.appendReplacement(builder, ChatColor.of("#" + group).toString());
+            String hex = matcher.group(1);
+            StringBuilder replacement = new StringBuilder("§x");
+            for (char c : hex.toCharArray()) {
+                replacement.append('§').append(c);
+            }
+            matcher.appendReplacement(builder, replacement.toString());
         }
         matcher.appendTail(builder);
-        return ChatColor.translateAlternateColorCodes('&', builder.toString());
+        return builder.toString().replace('&', '§');
     }
 }

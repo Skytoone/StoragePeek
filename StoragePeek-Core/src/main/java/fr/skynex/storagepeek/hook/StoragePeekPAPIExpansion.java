@@ -67,9 +67,8 @@ public class StoragePeekPAPIExpansion extends PlaceholderExpansion {
             case "active_theme":
                 String theme = "DEFAULT";
                 org.bukkit.persistence.PersistentDataContainer pdc = player.getPersistentDataContainer();
-                org.bukkit.NamespacedKey themeKey = new org.bukkit.NamespacedKey(plugin, "theme");
-                if (pdc.has(themeKey, org.bukkit.persistence.PersistentDataType.STRING)) {
-                    theme = pdc.get(themeKey, org.bukkit.persistence.PersistentDataType.STRING);
+                if (pdc.has(plugin.getThemeKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
+                    theme = pdc.get(plugin.getThemeKey(), org.bukkit.persistence.PersistentDataType.STRING);
                 }
                 return theme != null ? theme.toUpperCase() : "DEFAULT";
 

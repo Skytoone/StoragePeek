@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerListener implements Listener {
 
+    public static final java.util.List<String> THEME_LIST = java.util.List.of("default", "ender", "rich", "aqua", "nether", "neon", "cyberpunk", "rainbow");
     private final StoragePeek plugin;
     private final Map<UUID, Long> combatTimes = new ConcurrentHashMap<>();
 
@@ -72,21 +73,11 @@ public class PlayerListener implements Listener {
         if (plainTitle.equals("StoragePeek - Themes")) {
             event.setCancelled(true);
             int slot = event.getRawSlot();
-            if (slot < 0 || slot >= 8) {
+            if (slot < 0 || slot >= THEME_LIST.size()) {
                 return;
             }
             
-            String selectedTheme = switch (slot) {
-                case 0 -> "default";
-                case 1 -> "ender";
-                case 2 -> "rich";
-                case 3 -> "aqua";
-                case 4 -> "nether";
-                case 5 -> "neon";
-                case 6 -> "cyberpunk";
-                case 7 -> "rainbow";
-                default -> "default";
-            };
+            String selectedTheme = THEME_LIST.get(slot);
 
             if (!selectedTheme.equals("default") && !player.hasPermission("storagepeek.theme." + selectedTheme)) {
                 player.sendMessage(plugin.getMessageManager().getMessage("theme-no-permission").replace("{theme}", selectedTheme));
@@ -96,8 +87,7 @@ public class PlayerListener implements Listener {
             }
 
             org.bukkit.persistence.PersistentDataContainer pdc = player.getPersistentDataContainer();
-            org.bukkit.NamespacedKey themeKey = new org.bukkit.NamespacedKey(plugin, "theme");
-            pdc.set(themeKey, org.bukkit.persistence.PersistentDataType.STRING, selectedTheme);
+            pdc.set(plugin.getThemeKey(), org.bukkit.persistence.PersistentDataType.STRING, selectedTheme);
             player.sendMessage(plugin.getMessageManager().getMessage("theme-updated").replace("{theme}", selectedTheme));
             player.closeInventory();
             plugin.playConfigSound(player, "sort", org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.2f);
