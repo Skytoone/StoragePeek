@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Plugin Version](https://img.shields.io/badge/Version-v1.2.0-FFD700?style=for-the-badge&logo=minecraft)](https://www.spigotmc.org/resources/134712)
+[![Plugin Version](https://img.shields.io/badge/Version-v1.2.1-FFD700?style=for-the-badge&logo=minecraft)](https://www.spigotmc.org/resources/134712)
 [![Java Version](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk)](https://www.oracle.com/java/)
 [![Platform](https://img.shields.io/badge/Platform-Paper%20%7C%20Spigot%20%7C%20Folia-005B9A?style=for-the-badge)](https://papermc.io/)
 [![JitPack](https://img.shields.io/jitpack/v/github/Skytoone/StoragePeek?style=for-the-badge&color=2E7D32&logo=jitpack)](https://jitpack.io/#Skytoone/StoragePeek)
@@ -93,7 +93,7 @@ StoragePeek provides a lightweight multi-module API (`StoragePeek-API`) availabl
     <dependency>
         <groupId>com.github.Skytoone.StoragePeek</groupId>
         <artifactId>StoragePeek-API</artifactId>
-        <version>v1.2.0</version>
+        <version>v1.2.1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -106,7 +106,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.Skytoone.StoragePeek:StoragePeek-API:v1.2.0'
+    compileOnly 'com.github.Skytoone.StoragePeek:StoragePeek-API:v1.2.1'
 }
 ```
 

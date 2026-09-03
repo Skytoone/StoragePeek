@@ -50,19 +50,19 @@ permissions:
     default: op
   storagepeek.toggle:
     description: Allows players to toggle peeking on or off for themselves (/storagepeek toggle).
-    default: op
+    default: true
   storagepeek.peek:
     description: Allows players to peek into all allowed containers.
-    default: op
+    default: true
   storagepeek.filter:
     description: Allows players to use the /storagepeek filter command.
-    default: op
+    default: true
   storagepeek.themes:
     description: Allows players to open the themes menu (/storagepeek themes).
-    default: op
+    default: true
   storagepeek.peek.*:
     description: Allows players to peek into all container types (wildcard).
-    default: op
+    default: true
     children:
       storagepeek.peek: true
       storagepeek.peek.chest: true
