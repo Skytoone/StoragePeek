@@ -13,8 +13,10 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -29,6 +31,60 @@ public class BaseStorageManager {
 
     public BaseStorageManager(StoragePeek plugin) {
         this.plugin = plugin;
+    }
+
+    public Inventory findInventory(Player player, Block block, Entity entity, EquipmentSlot handSlot) {
+        if (handSlot != null) {
+            ItemStack item = handSlot == EquipmentSlot.HAND ? 
+                player.getInventory().getItemInMainHand() : 
+                player.getInventory().getItemInOffHand();
+            if (item != null && item.getType().name().contains("SHULKER_BOX")) {
+                if (item.getItemMeta() instanceof org.bukkit.inventory.meta.BlockStateMeta bsm) {
+                    if (bsm.getBlockState() instanceof org.bukkit.block.ShulkerBox shulkerBox) {
+                        return shulkerBox.getInventory();
+                    }
+                }
+            }
+            return null;
+        }
+        if (block != null) {
+            Inventory inv = plugin.getHookManager().getInventory(block, player);
+            if (inv != null) return inv;
+            if (block.getType() == Material.ENDER_CHEST) return player.getEnderChest();
+        } else if (entity != null) {
+            Inventory inv = plugin.getHookManager().getInventory(entity, player);
+            if (inv != null) return inv;
+        }
+        return null;
+    }
+
+    public Location resolveContainerCenter(Block block, Entity entity, EquipmentSlot handSlot, Player player) {
+        if (block != null) {
+            if (plugin.getHookManager().getInventory(block, player) instanceof org.bukkit.inventory.DoubleChestInventory dci) {
+                org.bukkit.block.DoubleChest doubleChest = dci.getHolder();
+                if (doubleChest != null) {
+                    Location loc = doubleChest.getLocation();
+                    if (doubleChest.getLeftSide() instanceof org.bukkit.block.BlockState leftState && 
+                        doubleChest.getRightSide() instanceof org.bukkit.block.BlockState rightState) {
+                        Location lLoc = leftState.getLocation().add(0.5, 0.5, 0.5);
+                        Location rLoc = rightState.getLocation().add(0.5, 0.5, 0.5);
+                        return new Location(loc.getWorld(), 
+                            (lLoc.getX() + rLoc.getX()) / 2.0,
+                            (lLoc.getY() + rLoc.getY()) / 2.0,
+                            (lLoc.getZ() + rLoc.getZ()) / 2.0
+                        );
+                    }
+                    return loc;
+                }
+            }
+            return block.getLocation().add(0.5, 0.5, 0.5);
+        }
+        if (entity != null) {
+            Location loc = entity.getLocation();
+            loc.add(0, entity.getHeight() / 2.0, 0);
+            return loc;
+        }
+        return null;
     }
 
     public List<Block> findContainersInRadius(Location pLoc, int radius, Player player) {
@@ -104,6 +160,22 @@ public class BaseStorageManager {
         return totalDeposited;
     }
 
+    private final Map<Material, CachedValue> itemValueCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record CachedValue(double value, long timestamp) {}
+
+    public double getCachedItemValue(fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl, ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return 0.0;
+        long now = System.currentTimeMillis();
+        CachedValue cached = itemValueCache.get(item.getType());
+        if (cached != null && (now - cached.timestamp()) < 15000L) {
+            return cached.value() * item.getAmount();
+        }
+        double unitValue = apiImpl.getItemValue(new ItemStack(item.getType(), 1));
+        itemValueCache.put(item.getType(), new CachedValue(unitValue, now));
+        return unitValue * item.getAmount();
+    }
+
     public void displayBaseStatsHologram(Player player, int radius) {
         Location pLoc = player.getLocation();
         if (pLoc.getWorld() == null) return;
@@ -126,14 +198,13 @@ public class BaseStorageManager {
             if (inv != null) {
                 totalChests++;
                 totalSlotsCapacity += inv.getSize();
-                double chestValue = apiImpl.getContainerTotalValue(block, player);
-                totalEcoValue += chestValue;
 
                 for (ItemStack item : inv.getContents()) {
                     if (item != null && item.getType() != Material.AIR) {
                         totalSlotsUsed++;
                         totalItemCount += item.getAmount();
-                        double val = apiImpl.getItemValue(item);
+                        double val = getCachedItemValue(apiImpl, item);
+                        totalEcoValue += val;
                         if (val > highestItemVal) {
                             highestItemVal = val;
                             mostValuableMaterial = item.getType();

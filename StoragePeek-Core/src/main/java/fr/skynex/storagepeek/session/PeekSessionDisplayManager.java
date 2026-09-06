@@ -12,6 +12,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
@@ -39,14 +40,15 @@ public class PeekSessionDisplayManager {
 
     public record ItemEntry(ItemDisplay display, double xOff, double yOff, int slot) {}
 
-    private static final Map<Material, org.bukkit.block.data.BlockData> blockDataCache = new ConcurrentHashMap<>();
+    private static final Map<Material, BlockData> blockDataCache = new ConcurrentHashMap<>();
 
     private final StoragePeek plugin;
     private final PeekSession session;
+    private final DurabilityBarRenderer durabilityBarRenderer;
+    private final SessionHeaderRenderer sessionHeaderRenderer;
+
     private final List<ItemEntry> itemEntries = new ArrayList<>();
     private final Map<Integer, TextDisplay> fakeAmounts = new HashMap<>();
-    private final Map<Integer, BlockDisplay> durabilityBars = new HashMap<>();
-    private final Map<Integer, BlockDisplay> durabilityBgs = new HashMap<>();
     private final Map<Integer, String> lastTextCache = new HashMap<>();
     private final List<Entity> entitiesToShow = new ArrayList<>();
 
@@ -55,10 +57,6 @@ public class PeekSessionDisplayManager {
     private Interaction interactionEntity;
     private int hoveredSlot = -1;
     private TextDisplay hoverLabel;
-    private TextDisplay fillIndicator;
-    private TextDisplay taglineBanner;
-    private TextDisplay lockIndicator;
-    private TextDisplay pageBanner;
     private BlockDisplay hoverHighlight;
 
     private boolean isSpawning = false;
@@ -67,6 +65,8 @@ public class PeekSessionDisplayManager {
     public PeekSessionDisplayManager(StoragePeek plugin, PeekSession session) {
         this.plugin = plugin;
         this.session = session;
+        this.durabilityBarRenderer = new DurabilityBarRenderer(plugin, session, blockDataCache);
+        this.sessionHeaderRenderer = new SessionHeaderRenderer(plugin);
     }
 
     public void spawnDisplays(Location centerCache, Inventory inventory, int columns, double spacing, Material backgroundMaterial,
@@ -90,7 +90,7 @@ public class PeekSessionDisplayManager {
 
             float bgWidth = (float) (columns * spacing) + 0.15f;
             float bgHeight = (float) (rows * spacing) + 0.15f;
-            org.bukkit.block.data.BlockData bgData = blockDataCache.computeIfAbsent(backgroundMaterial, Bukkit::createBlockData);
+            BlockData bgData = blockDataCache.computeIfAbsent(backgroundMaterial, Bukkit::createBlockData);
 
             background = centerCache.getWorld().spawn(centerCache, BlockDisplay.class, ent -> {
                 plugin.tagDisplayEntity(ent);
@@ -201,7 +201,7 @@ public class PeekSessionDisplayManager {
                     spawnFakeAmount(i, item.getAmount(), (float) xOff, (float) yOff, centerCache, player, textScale, textYOffset, textZOffset, animationsEnabled, inventory);
                 }
                 if (item != null && item.getType().getMaxDurability() > 0 && plugin.isDurabilityBarsEnabled()) {
-                    spawnDurabilityBar(i, item, (float) xOff, (float) yOff, centerCache, player, animationsEnabled);
+                    durabilityBarRenderer.spawnDurabilityBar(anchor, i, item, (float) xOff, (float) yOff, centerCache, player, animationsEnabled, isSpawning, ent -> showEntityToPlayer(ent, player));
                 }
             }
 
@@ -242,127 +242,7 @@ public class PeekSessionDisplayManager {
             anchor.addPassenger(hoverLabel);
             showEntityToPlayer(hoverLabel, player);
 
-            boolean fillEnabled = plugin.getConfig().getBoolean("visualizers.fill-indicator", true)
-                    && plugin.getConfig().getBoolean("holograms.fill-indicator-enabled", true);
-            if (fillEnabled) {
-                int totalSlots = inventory != null ? inventory.getSize() : 0;
-                int usedSlots = 0;
-                if (inventory != null) {
-                    for (ItemStack item : inventory.getContents()) {
-                        if (item != null && item.getType() != Material.AIR) {
-                            usedSlots++;
-                        }
-                    }
-                }
-                int fillPercent = totalSlots > 0 ? (usedSlots * 100 / totalSlots) : 0;
-                String fillText = fillPercent >= 90
-                    ? "§c§l[⚠️ CONTAINER FULL - " + fillPercent + "%]"
-                    : "§7Storage Capacity: " + fillPercent + "%";
-                Color bgColor = fillPercent >= 90
-                    ? Color.fromARGB(200, 180, 20, 20)
-                    : Color.fromARGB(120, 0, 0, 0);
-
-                fillIndicator = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
-                    plugin.tagDisplayEntity(ent);
-                    ent.setVisibleByDefault(false);
-                    ent.setBillboard(Display.Billboard.CENTER);
-                    ent.setBrightness(new Display.Brightness(15, 15));
-                    ent.setDefaultBackground(true);
-                    ent.setBackgroundColor(bgColor);
-                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
-                    ent.text(LegacyComponentSerializer.legacySection().deserialize(fillText));
-                    Transformation t = ent.getTransformation();
-                    t.getTranslation().set(0f, -bgHeight / 2f - 0.22f, 0.05f);
-                    ent.setTransformation(t);
-                });
-                anchor.addPassenger(fillIndicator);
-                showEntityToPlayer(fillIndicator, player);
-            }
-
-            fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
-                (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
-            String tagline = apiImpl.getContainerTagline(block, entity);
-            if (tagline != null && !tagline.isEmpty()) {
-                taglineBanner = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
-                    plugin.tagDisplayEntity(ent);
-                    ent.setVisibleByDefault(false);
-                    ent.setBillboard(Display.Billboard.CENTER);
-                    ent.setBrightness(new Display.Brightness(15, 15));
-                    ent.setDefaultBackground(true);
-                    ent.setBackgroundColor(Color.fromARGB(160, 20, 20, 20));
-                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
-                    ent.text(LegacyComponentSerializer.legacySection().deserialize(tagline));
-                    Transformation t = ent.getTransformation();
-                    t.getTranslation().set(0f, bgHeight / 2f + 0.25f, 0.05f);
-                    ent.setTransformation(t);
-                });
-                anchor.addPassenger(taglineBanner);
-                showEntityToPlayer(taglineBanner, player);
-            }
-
-            if (plugin.getSethomeXHook() != null && plugin.getSethomeXHook().isActive() && block != null) {
-                String homeName = plugin.getSethomeXHook().getNearbyHomeName(player, block.getLocation());
-                if (homeName != null) {
-                    TextDisplay homeBanner = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
-                        plugin.tagDisplayEntity(ent);
-                        ent.setVisibleByDefault(false);
-                        ent.setBillboard(Display.Billboard.CENTER);
-                        ent.setBrightness(new Display.Brightness(15, 15));
-                        ent.setDefaultBackground(true);
-                        ent.setBackgroundColor(Color.fromARGB(180, 20, 80, 160));
-                        ent.setAlignment(TextDisplay.TextAlignment.CENTER);
-                        ent.text(LegacyComponentSerializer.legacySection().deserialize("§b🏠 [HOME CHEST: " + homeName + "]"));
-                        Transformation t = ent.getTransformation();
-                        t.getTranslation().set(0f, bgHeight / 2f + 0.65f, 0.05f);
-                        ent.setTransformation(t);
-                    });
-                    anchor.addPassenger(homeBanner);
-                    showEntityToPlayer(homeBanner, player);
-                }
-            }
-
-            if (plugin.getConfig().getBoolean("holograms.lock-indicator-enabled", true)) {
-                boolean isProtectedArea = (block != null && !plugin.getProtectionManager().canAccess(player, block.getLocation()));
-                String lockText = isProtectedArea ? "§c🔒 Locked §7(Protected)" : "§a🔓 Unlocked §7(Access Granted)";
-                Color lockBg = isProtectedArea ? Color.fromARGB(180, 150, 20, 20) : Color.fromARGB(140, 20, 120, 20);
-
-                lockIndicator = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
-                    plugin.tagDisplayEntity(ent);
-                    ent.setVisibleByDefault(false);
-                    ent.setBillboard(Display.Billboard.CENTER);
-                    ent.setBrightness(new Display.Brightness(15, 15));
-                    ent.setDefaultBackground(true);
-                    ent.setBackgroundColor(lockBg);
-                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
-                    ent.text(LegacyComponentSerializer.legacySection().deserialize(lockText));
-                    Transformation t = ent.getTransformation();
-                    t.getTranslation().set(0f, bgHeight / 2f + 0.45f, 0.05f);
-                    t.getScale().set(0.8f, 0.8f, 0.8f);
-                    ent.setTransformation(t);
-                });
-                anchor.addPassenger(lockIndicator);
-                showEntityToPlayer(lockIndicator, player);
-            }
-
-            if (plugin.getConfig().getBoolean("holograms.pagination-enabled", true) && size > 27) {
-                int totalPages = (int) Math.ceil((double) size / 27);
-                String pageText = "§e◀ Page " + (currentPage + 1) + " / " + totalPages + " ▶  §7(/sp page next)";
-                pageBanner = centerCache.getWorld().spawn(centerCache, TextDisplay.class, ent -> {
-                    plugin.tagDisplayEntity(ent);
-                    ent.setVisibleByDefault(false);
-                    ent.setBillboard(Display.Billboard.CENTER);
-                    ent.setBrightness(new Display.Brightness(15, 15));
-                    ent.setDefaultBackground(true);
-                    ent.setBackgroundColor(Color.fromARGB(160, 30, 30, 50));
-                    ent.setAlignment(TextDisplay.TextAlignment.CENTER);
-                    ent.text(LegacyComponentSerializer.legacySection().deserialize(pageText));
-                    Transformation t = ent.getTransformation();
-                    t.getTranslation().set(0f, -bgHeight / 2f - 0.42f, 0.05f);
-                    ent.setTransformation(t);
-                });
-                anchor.addPassenger(pageBanner);
-                showEntityToPlayer(pageBanner, player);
-            }
+            sessionHeaderRenderer.spawnHeaderBanners(anchor, centerCache, inventory, bgHeight, block, entity, player, size, currentPage, ent -> showEntityToPlayer(ent, player));
         } finally {
             isSpawning = false;
         }
@@ -476,123 +356,19 @@ public class PeekSessionDisplayManager {
     }
 
     public void spawnDurabilityBar(int slot, ItemStack item, float localX, float localY, Location centerCache, Player player, boolean animationsEnabled) {
-        if (item == null || item.getType().getMaxDurability() <= 0) return;
-        if (!(item.getItemMeta() instanceof Damageable meta) || meta.getDamage() == 0) return;
-
-        double percent = (double) (item.getType().getMaxDurability() - meta.getDamage()) / item.getType().getMaxDurability();
-        Material barColor = getDurabilityColor(percent);
-        Material filterMaterial = session.getFilterMaterial();
-        boolean matches = (filterMaterial == null) || (item.getType() == filterMaterial);
-
-        BlockDisplay bg = centerCache.getWorld().spawn(centerCache, BlockDisplay.class, ent -> {
-            plugin.tagDisplayEntity(ent);
-            ent.setBlock(blockDataCache.computeIfAbsent(Material.BLACK_CONCRETE, Bukkit::createBlockData));
-            ent.setBillboard(session.isFrozen() ? Display.Billboard.FIXED : Display.Billboard.CENTER);
-            ent.setVisibleByDefault(false);
-            ent.setBrightness(new Display.Brightness(15, 15));
-            Transformation t = ent.getTransformation();
-            float currentBgX = (animationsEnabled || !matches) ? 0f : 0.12f;
-            float currentBgY = (animationsEnabled || !matches) ? 0f : 0.015f;
-            float currentBgZ = (animationsEnabled || !matches) ? 0f : 0.001f;
-            t.getScale().set(currentBgX, currentBgY, currentBgZ);
-            t.getTranslation().set(localX - 0.06f, localY - 0.08f, 0.02f);
-            ent.setTransformation(t);
-        });
-        anchor.addPassenger(bg);
-        showEntityToPlayer(bg, player);
-        durabilityBgs.put(slot, bg);
-
-        BlockDisplay bar = centerCache.getWorld().spawn(centerCache, BlockDisplay.class, ent -> {
-            plugin.tagDisplayEntity(ent);
-            ent.setBlock(blockDataCache.computeIfAbsent(barColor, Bukkit::createBlockData));
-            ent.setBillboard(session.isFrozen() ? Display.Billboard.FIXED : Display.Billboard.CENTER);
-            ent.setVisibleByDefault(false);
-            ent.setBrightness(new Display.Brightness(15, 15));
-            Transformation t = ent.getTransformation();
-            float currentBarX = (animationsEnabled || !matches) ? 0f : 0.11f * (float) percent;
-            float currentBarY = (animationsEnabled || !matches) ? 0f : 0.01f;
-            float currentBarZ = (animationsEnabled || !matches) ? 0f : 0.002f;
-            t.getScale().set(currentBarX, currentBarY, currentBarZ);
-            t.getTranslation().set(localX - 0.055f, localY - 0.078f, 0.021f);
-            ent.setTransformation(t);
-        });
-        anchor.addPassenger(bar);
-        showEntityToPlayer(bar, player);
-        durabilityBars.put(slot, bar);
-
-        if (animationsEnabled && matches && !isSpawning) {
-            FoliaScheduler.runLater(plugin, player, () -> {
-                if (bg.isValid() && bar.isValid() && anchor != null && anchor.isValid()) {
-                    bg.setInterpolationDelay(0);
-                    bg.setInterpolationDuration(5);
-                    Transformation tBg = bg.getTransformation();
-                    tBg.getScale().set(0.12f, 0.015f, 0.001f);
-                    bg.setTransformation(tBg);
-
-                    bar.setInterpolationDelay(0);
-                    bar.setInterpolationDuration(5);
-                    Transformation tBar = bar.getTransformation();
-                    tBar.getScale().set(0.11f * (float) percent, 0.01f, 0.002f);
-                    bar.setTransformation(tBar);
-                }
-            }, 1L);
-        }
+        durabilityBarRenderer.spawnDurabilityBar(anchor, slot, item, localX, localY, centerCache, player, animationsEnabled, isSpawning, ent -> showEntityToPlayer(ent, player));
     }
 
     public void updateDurabilityBar(int slot, ItemStack item, float localX, float localY, Location centerCache, Player player, boolean animationsEnabled) {
-        if (!plugin.isDurabilityBarsEnabled() || item == null || item.getType().getMaxDurability() <= 0) {
-            destroyDurabilityBar(slot);
-            return;
-        }
-        if (!(item.getItemMeta() instanceof Damageable meta) || meta.getDamage() == 0) {
-            destroyDurabilityBar(slot);
-            return;
-        }
-
-        if (!durabilityBars.containsKey(slot)) {
-            spawnDurabilityBar(slot, item, localX, localY, centerCache, player, animationsEnabled);
-        } else {
-            BlockDisplay bar = durabilityBars.get(slot);
-            if (bar != null && bar.isValid()) {
-                double percent = (double) (item.getType().getMaxDurability() - meta.getDamage()) / item.getType().getMaxDurability();
-                Material barColor = getDurabilityColor(percent);
-                bar.setBlock(blockDataCache.computeIfAbsent(barColor, Bukkit::createBlockData));
-                Transformation t = bar.getTransformation();
-
-                Material filterMaterial = session.getFilterMaterial();
-                boolean matches = (filterMaterial == null) || (item.getType() == filterMaterial);
-                float targetBarX = matches ? 0.11f * (float) percent : 0f;
-                float targetBarY = matches ? 0.01f : 0f;
-                float targetBarZ = matches ? 0.002f : 0f;
-                t.getScale().set(targetBarX, targetBarY, targetBarZ);
-                bar.setTransformation(t);
-            }
-
-            BlockDisplay bg = durabilityBgs.get(slot);
-            if (bg != null && bg.isValid()) {
-                Transformation t = bg.getTransformation();
-                Material filterMaterial = session.getFilterMaterial();
-                boolean matches = (filterMaterial == null) || (item.getType() == filterMaterial);
-                float targetBgX = matches ? 0.12f : 0f;
-                float targetBgY = matches ? 0.015f : 0f;
-                float targetBgZ = matches ? 0.001f : 0f;
-                t.getScale().set(targetBgX, targetBgY, targetBgZ);
-                bg.setTransformation(t);
-            }
-        }
+        durabilityBarRenderer.updateDurabilityBar(anchor, slot, item, localX, localY, centerCache, player, animationsEnabled, isSpawning, ent -> showEntityToPlayer(ent, player));
     }
 
-    private Material getDurabilityColor(double percent) {
-        if (percent > 0.6) return plugin.getDurabilityColorHigh();
-        if (percent > 0.3) return plugin.getDurabilityColorMedium();
-        return plugin.getDurabilityColorLow();
+    public Material getDurabilityColor(double percent) {
+        return durabilityBarRenderer.getDurabilityColor(percent);
     }
 
     public void destroyDurabilityBar(int slot) {
-        BlockDisplay bg = durabilityBgs.remove(slot);
-        if (bg != null) bg.remove();
-        BlockDisplay bar = durabilityBars.remove(slot);
-        if (bar != null) bar.remove();
+        durabilityBarRenderer.destroyDurabilityBar(slot);
     }
 
     public void applyHoverEffects(int newTarget, Player player, Block block, Entity entity, Inventory inventory,
@@ -815,29 +591,7 @@ public class PeekSessionDisplayManager {
                     amtText.setTransformation(tText);
                 }
 
-                BlockDisplay dbBg = durabilityBgs.get(entry.slot());
-                BlockDisplay dbBar = durabilityBars.get(entry.slot());
-                if (dbBg != null && dbBg.isValid() && dbBar != null && dbBar.isValid()) {
-                    Transformation tBg = dbBg.getTransformation();
-                    Transformation tBar = dbBar.getTransformation();
-                    if (matches) {
-                        tBg.getScale().set(0.12f, 0.015f, 0.001f);
-                        if (item != null && item.getItemMeta() instanceof Damageable meta) {
-                            double percent = (double) (item.getType().getMaxDurability() - meta.getDamage()) / item.getType().getMaxDurability();
-                            tBar.getScale().set(0.11f * (float) percent, 0.01f, 0.002f);
-                        }
-                    } else {
-                        tBg.getScale().set(0f, 0f, 0f);
-                        tBar.getScale().set(0f, 0f, 0f);
-                    }
-                    dbBg.setInterpolationDelay(0);
-                    dbBg.setInterpolationDuration(4);
-                    dbBg.setTransformation(tBg);
-
-                    dbBar.setInterpolationDelay(0);
-                    dbBar.setInterpolationDuration(4);
-                    dbBar.setTransformation(tBar);
-                }
+                durabilityBarRenderer.updateScalesForEntry(entry, filterMaterial);
             }
         }
     }
@@ -865,31 +619,20 @@ public class PeekSessionDisplayManager {
                 display.setBillboard(billboardMode);
             }
         }
-        for (BlockDisplay bg : durabilityBgs.values()) {
-            if (bg != null && bg.isValid()) {
-                bg.setBillboard(billboardMode);
-            }
-        }
-        for (BlockDisplay bar : durabilityBars.values()) {
-            if (bar != null && bar.isValid()) {
-                bar.setBillboard(billboardMode);
-            }
-        }
+        durabilityBarRenderer.updateAllBillboards(billboardMode);
+        sessionHeaderRenderer.setChildDisplayRotations(0f, 0f); // headers update if needed
     }
 
     public void setChildDisplayRotations(float yaw, float pitch) {
         if (background != null && background.isValid()) background.setRotation(yaw, pitch);
         if (hoverHighlight != null && hoverHighlight.isValid()) hoverHighlight.setRotation(yaw, pitch);
         if (hoverLabel != null && hoverLabel.isValid()) hoverLabel.setRotation(yaw, pitch);
-        if (fillIndicator != null && fillIndicator.isValid()) fillIndicator.setRotation(yaw, pitch);
+        sessionHeaderRenderer.setChildDisplayRotations(yaw, pitch);
         for (ItemEntry entry : itemEntries)
             if (entry.display() != null && entry.display().isValid()) entry.display().setRotation(yaw, pitch);
         for (TextDisplay d : fakeAmounts.values())
             if (d != null && d.isValid()) d.setRotation(yaw, pitch);
-        for (BlockDisplay d : durabilityBgs.values())
-            if (d != null && d.isValid()) d.setRotation(yaw, pitch);
-        for (BlockDisplay d : durabilityBars.values())
-            if (d != null && d.isValid()) d.setRotation(yaw, pitch);
+        durabilityBarRenderer.setChildDisplayRotations(yaw, pitch);
     }
 
     public void spawnInteractionEntity(Location centerCache, int columns, double spacing, Inventory inventory, Player player) {
@@ -958,31 +701,7 @@ public class PeekSessionDisplayManager {
                 }
             }
 
-            for (Map.Entry<Integer, BlockDisplay> entry : durabilityBgs.entrySet()) {
-                BlockDisplay bg = entry.getValue();
-                if (bg != null && bg.isValid()) {
-                    bg.setInterpolationDelay(0);
-                    bg.setInterpolationDuration(5);
-                    Transformation t = bg.getTransformation();
-                    t.getScale().set(0.12f, 0.015f, 0.001f);
-                    bg.setTransformation(t);
-                }
-            }
-
-            for (Map.Entry<Integer, BlockDisplay> entry : durabilityBars.entrySet()) {
-                BlockDisplay bar = entry.getValue();
-                if (bar != null && bar.isValid() && inventory != null) {
-                    ItemStack item = inventory.getItem(entry.getKey());
-                    if (item != null && item.getItemMeta() instanceof Damageable meta) {
-                        double percent = (double) (item.getType().getMaxDurability() - meta.getDamage()) / item.getType().getMaxDurability();
-                        bar.setInterpolationDelay(0);
-                        bar.setInterpolationDuration(5);
-                        Transformation t = bar.getTransformation();
-                        t.getScale().set(0.11f * (float) percent, 0.01f, 0.002f);
-                        bar.setTransformation(t);
-                    }
-                }
-            }
+            durabilityBarRenderer.animateScaleUp(inventory);
         }, 1L);
     }
 
@@ -1008,20 +727,7 @@ public class PeekSessionDisplayManager {
             t.getScale().set(0f, 0f, 0f);
             hoverHighlight.setTransformation(t);
         }
-        if (lockIndicator != null && lockIndicator.isValid()) {
-            lockIndicator.setInterpolationDelay(0);
-            lockIndicator.setInterpolationDuration(4);
-            Transformation t = lockIndicator.getTransformation();
-            t.getScale().set(0f, 0f, 0f);
-            lockIndicator.setTransformation(t);
-        }
-        if (pageBanner != null && pageBanner.isValid()) {
-            pageBanner.setInterpolationDelay(0);
-            pageBanner.setInterpolationDuration(4);
-            Transformation t = pageBanner.getTransformation();
-            t.getScale().set(0f, 0f, 0f);
-            pageBanner.setTransformation(t);
-        }
+        sessionHeaderRenderer.animateScaleDown();
         for (ItemEntry entry : itemEntries) {
             if (entry.display() != null && entry.display().isValid()) {
                 entry.display().setInterpolationDelay(0);
@@ -1040,24 +746,7 @@ public class PeekSessionDisplayManager {
                 display.setTransformation(t);
             }
         }
-        for (BlockDisplay bg : durabilityBgs.values()) {
-            if (bg != null && bg.isValid()) {
-                bg.setInterpolationDelay(0);
-                bg.setInterpolationDuration(4);
-                Transformation t = bg.getTransformation();
-                t.getScale().set(0f, 0f, 0f);
-                bg.setTransformation(t);
-            }
-        }
-        for (BlockDisplay bar : durabilityBars.values()) {
-            if (bar != null && bar.isValid()) {
-                bar.setInterpolationDelay(0);
-                bar.setInterpolationDuration(4);
-                Transformation t = bar.getTransformation();
-                t.getScale().set(0f, 0f, 0f);
-                bar.setTransformation(t);
-            }
-        }
+        durabilityBarRenderer.animateScaleDown();
     }
 
     public void removeEntities() {
@@ -1079,11 +768,8 @@ public class PeekSessionDisplayManager {
         if (anchor != null) { anchor.remove(); anchor = null; }
         if (interactionEntity != null) { interactionEntity.remove(); interactionEntity = null; }
         if (hoverLabel != null) { hoverLabel.remove(); hoverLabel = null; }
-        if (fillIndicator != null) { fillIndicator.remove(); fillIndicator = null; }
-        if (taglineBanner != null) { taglineBanner.remove(); taglineBanner = null; }
         if (hoverHighlight != null) { hoverHighlight.remove(); hoverHighlight = null; }
-        if (lockIndicator != null) { lockIndicator.remove(); lockIndicator = null; }
-        if (pageBanner != null) { pageBanner.remove(); pageBanner = null; }
+        sessionHeaderRenderer.removeAll();
 
         for (ItemEntry entry : itemEntries) {
             if (entry.display() != null) entry.display().remove();
@@ -1095,15 +781,7 @@ public class PeekSessionDisplayManager {
         }
         fakeAmounts.clear();
 
-        for (BlockDisplay bg : durabilityBgs.values()) {
-            if (bg != null) bg.remove();
-        }
-        durabilityBgs.clear();
-
-        for (BlockDisplay bar : durabilityBars.values()) {
-            if (bar != null) bar.remove();
-        }
-        durabilityBars.clear();
+        durabilityBarRenderer.removeAll();
     }
 
     private void showEntityToPlayer(Entity entity, Player player) {
@@ -1126,7 +804,9 @@ public class PeekSessionDisplayManager {
     public List<ItemEntry> getItemEntries() { return itemEntries; }
     public int getHoveredSlot() { return hoveredSlot; }
     public void setHoveredSlot(int hoveredSlot) { this.hoveredSlot = hoveredSlot; }
-    public TextDisplay getFillIndicator() { return fillIndicator; }
+    public TextDisplay getFillIndicator() { return sessionHeaderRenderer.getFillIndicator(); }
+    public Map<Integer, BlockDisplay> getDurabilityBars() { return durabilityBarRenderer.getDurabilityBars(); }
+    public Map<Integer, BlockDisplay> getDurabilityBgs() { return durabilityBarRenderer.getDurabilityBgs(); }
     public boolean isCleanedUp() { return cleanedUp; }
     public static void clearBlockDataCache() { blockDataCache.clear(); }
 }

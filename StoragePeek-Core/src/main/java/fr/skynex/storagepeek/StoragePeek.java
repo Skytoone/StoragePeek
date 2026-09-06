@@ -45,6 +45,10 @@ public final class StoragePeek extends JavaPlugin {
     private fr.skynex.storagepeek.hook.SethomeXHook sethomeXHook;
     private fr.skynex.storagepeek.manager.AdaptivePerformanceManager performanceManager;
 
+    public fr.skynex.storagepeek.manager.BaseStorageManager getBaseStorageManager() {
+        return baseStorageManager;
+    }
+
     public fr.skynex.storagepeek.hook.VaultXHook getVaultXHook() {
         return vaultXHook;
     }

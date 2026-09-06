@@ -54,6 +54,20 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
+    public void onWorldChange(org.bukkit.event.player.PlayerChangedWorldEvent event) {
+        if (plugin.getRaycastTask() != null) {
+            plugin.getRaycastTask().cleanupCompassArrow(event.getPlayer().getUniqueId());
+        }
+    }
+
+    @EventHandler
+    public void onDeath(org.bukkit.event.entity.PlayerDeathEvent event) {
+        if (plugin.getRaycastTask() != null) {
+            plugin.getRaycastTask().cleanupCompassArrow(event.getEntity().getUniqueId());
+        }
+    }
+
+    @EventHandler
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (event.getPlayer() instanceof Player player) {
             cleanupPlayer(player);

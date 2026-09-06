@@ -77,19 +77,29 @@ public class PeekSession {
 
     static {
         for (Material mat : Material.values()) {
-            String name = mat.name();
-            if (name.contains("DIAMOND") || name.contains("EMERALD") || name.contains("GOLD") 
-                    || name.contains("IRON") || name.contains("COAL") || name.contains("COPPER") 
-                    || name.contains("REDSTONE") || name.contains("LAPIS") || name.contains("NETHERITE")
-                    || name.contains("AMETHYST") || name.contains("QUARTZ")) {
-                RESOURCE_MATERIALS.add(mat);
-            }
-            if (name.contains("SWORD") || name.contains("PICKAXE") || name.contains("AXE") 
-                    || name.contains("SHOVEL") || name.contains("HOE") || name.contains("HELMET") 
-                    || name.contains("CHESTPLATE") || name.contains("LEGGINGS") || name.contains("BOOTS") 
-                    || name.contains("SHIELD") || name.contains("BOW") || name.contains("CROSSBOW") 
-                    || name.contains("TRIDENT") || name.contains("SHEARS") || name.contains("FISHING_ROD")) {
+            if (!mat.isItem()) continue;
+
+            if (org.bukkit.Tag.ITEMS_SWORDS.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_AXES.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_PICKAXES.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_SHOVELS.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_HOES.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_CHEST_ARMOR.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_HEAD_ARMOR.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_LEG_ARMOR.isTagged(mat)
+                    || org.bukkit.Tag.ITEMS_FOOT_ARMOR.isTagged(mat)
+                    || mat == Material.SHIELD || mat == Material.BOW || mat == Material.CROSSBOW 
+                    || mat == Material.TRIDENT || mat == Material.SHEARS || mat == Material.FISHING_ROD) {
                 EQUIPMENT_MATERIALS.add(mat);
+            }
+
+            String name = mat.name();
+            if ((name.endsWith("_INGOT") || name.endsWith("_NUGGET") || name.startsWith("RAW_") 
+                    || mat == Material.DIAMOND || mat == Material.EMERALD || mat == Material.COAL || mat == Material.CHARCOAL 
+                    || mat == Material.REDSTONE || mat == Material.LAPIS_LAZULI || mat == Material.NETHERITE_SCRAP 
+                    || mat == Material.AMETHYST_SHARD || mat == Material.QUARTZ) 
+                    && !name.contains("ORE") && !name.contains("BLOCK")) {
+                RESOURCE_MATERIALS.add(mat);
             }
         }
     }
@@ -217,28 +227,7 @@ public class PeekSession {
     }
 
     private Inventory findInventory() {
-        if (handSlot != null) {
-            ItemStack item = handSlot == EquipmentSlot.HAND ? 
-                player.getInventory().getItemInMainHand() : 
-                player.getInventory().getItemInOffHand();
-            if (item != null && item.getType().name().contains("SHULKER_BOX")) {
-                if (item.getItemMeta() instanceof BlockStateMeta bsm) {
-                    if (bsm.getBlockState() instanceof org.bukkit.block.ShulkerBox shulkerBox) {
-                        return shulkerBox.getInventory();
-                    }
-                }
-            }
-            return null;
-        }
-        if (block != null) {
-            Inventory inv = plugin.getHookManager().getInventory(block, player);
-            if (inv != null) return inv;
-            if (block.getType() == Material.ENDER_CHEST) return player.getEnderChest();
-        } else if (entity != null) {
-            Inventory inv = plugin.getHookManager().getInventory(entity, player);
-            if (inv != null) return inv;
-        }
-        return null;
+        return plugin.getBaseStorageManager().findInventory(player, block, entity, handSlot);
     }
 
     private void spawnDisplays() {
@@ -639,27 +628,7 @@ public class PeekSession {
     }
 
     private Location resolveContainerCenter() {
-        if (inventory instanceof org.bukkit.inventory.DoubleChestInventory dci) {
-            org.bukkit.block.DoubleChest doubleChest = dci.getHolder();
-            if (doubleChest != null) {
-                Location loc = doubleChest.getLocation();
-                if (doubleChest.getLeftSide() instanceof org.bukkit.block.BlockState leftState && 
-                    doubleChest.getRightSide() instanceof org.bukkit.block.BlockState rightState) {
-                    Location lLoc = leftState.getLocation().add(0.5, 0.5, 0.5);
-                    Location rLoc = rightState.getLocation().add(0.5, 0.5, 0.5);
-                    return new Location(loc.getWorld(), 
-                        (lLoc.getX() + rLoc.getX()) / 2.0,
-                        (lLoc.getY() + rLoc.getY()) / 2.0,
-                        (lLoc.getZ() + rLoc.getZ()) / 2.0
-                    );
-                }
-                return loc;
-            }
-        }
-        if (block != null) {
-            return block.getLocation().add(0.5, 0.5, 0.5);
-        }
-        return null;
+        return plugin.getBaseStorageManager().resolveContainerCenter(block, entity, handSlot, player);
     }
 
     private void updateDisplayCenter() {

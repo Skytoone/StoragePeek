@@ -269,7 +269,7 @@ public class RaycastTask extends BukkitRunnable {
         double effectiveMaxDist = plugin.getPerformanceManager() != null ? plugin.getPerformanceManager().getAdaptiveMaxRaycastDistance(player, maxDist) : maxDist;
 
         RayTraceResult result;
-        if (entitiesEnabled && !allowedEntities.isEmpty()) {
+        if (entitiesEnabled) {
             result = player.getWorld().rayTrace(
                     eyeLoc,
                     dir,
@@ -277,7 +277,7 @@ public class RaycastTask extends BukkitRunnable {
                     FluidCollisionMode.NEVER,
                     true,
                     0.1,
-                    ent -> allowedEntities.contains(ent.getType()) && ent != player);
+                    ent -> (allowedEntities.contains(ent.getType()) || isInventoryContainerEntity(ent)) && ent != player);
         } else {
             result = player.getWorld().rayTraceBlocks(eyeLoc, dir, effectiveMaxDist, FluidCollisionMode.NEVER, true);
         }
@@ -537,6 +537,16 @@ public class RaycastTask extends BukkitRunnable {
                     }
                 }
             }
+        }
+        return false;
+    }
+
+    private boolean isInventoryContainerEntity(Entity ent) {
+        if (ent == null) return false;
+        if (ent instanceof org.bukkit.entity.ChestedHorse) return true;
+        if (ent instanceof org.bukkit.entity.minecart.StorageMinecart) return true;
+        if (ent instanceof org.bukkit.inventory.InventoryHolder holder) {
+            return holder.getInventory() != null && holder.getInventory().getSize() > 0;
         }
         return false;
     }
