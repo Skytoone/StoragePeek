@@ -25,7 +25,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
-import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
@@ -41,6 +40,7 @@ public class PeekSessionDisplayManager {
     public record ItemEntry(ItemDisplay display, double xOff, double yOff, int slot) {}
 
     private static final Map<Material, BlockData> blockDataCache = new ConcurrentHashMap<>();
+    private static final Map<Material, Component> formattedMaterialNames = new ConcurrentHashMap<>();
 
     private final StoragePeek plugin;
     private final PeekSession session;
@@ -48,6 +48,7 @@ public class PeekSessionDisplayManager {
     private final SessionHeaderRenderer sessionHeaderRenderer;
 
     private final List<ItemEntry> itemEntries = new ArrayList<>();
+    private final Map<Integer, ItemEntry> itemEntriesBySlot = new HashMap<>();
     private final Map<Integer, TextDisplay> fakeAmounts = new HashMap<>();
     private final Map<Integer, String> lastTextCache = new HashMap<>();
     private final List<Entity> entitiesToShow = new ArrayList<>();
@@ -195,7 +196,9 @@ public class PeekSessionDisplayManager {
                 });
                 anchor.addPassenger(display);
                 showEntityToPlayer(display, player);
-                itemEntries.add(new ItemEntry(display, xOff, yOff, i));
+                ItemEntry itemEntry = new ItemEntry(display, xOff, yOff, i);
+                itemEntries.add(itemEntry);
+                itemEntriesBySlot.put(i, itemEntry);
 
                 if (item != null && item.getAmount() > 1 && plugin.isQuantityLabelsEnabled()) {
                     spawnFakeAmount(i, item.getAmount(), (float) xOff, (float) yOff, centerCache, player, textScale, textYOffset, textZOffset, animationsEnabled, inventory);
@@ -376,18 +379,16 @@ public class PeekSessionDisplayManager {
         Material filterMaterial = session.getFilterMaterial();
 
         if (hoveredSlot != -1) {
-            for (ItemEntry entry : itemEntries) {
-                if (entry.slot() == hoveredSlot && entry.display().isValid()) {
-                    ItemStack oldItem = entry.display().getItemStack();
-                    boolean matches = (filterMaterial == null) || (oldItem != null && oldItem.getType() == filterMaterial);
-                    float targetScale = matches ? 0.15f : 0.05f;
-                    Transformation t = entry.display().getTransformation();
-                    t.getScale().set(targetScale, targetScale, targetScale);
-                    entry.display().setInterpolationDelay(0);
-                    entry.display().setInterpolationDuration(4);
-                    entry.display().setTransformation(t);
-                    break;
-                }
+            ItemEntry entry = itemEntriesBySlot.get(hoveredSlot);
+            if (entry != null && entry.display().isValid()) {
+                ItemStack oldItem = entry.display().getItemStack();
+                boolean matches = (filterMaterial == null) || (oldItem != null && oldItem.getType() == filterMaterial);
+                float targetScale = matches ? 0.15f : 0.05f;
+                Transformation t = entry.display().getTransformation();
+                t.getScale().set(targetScale, targetScale, targetScale);
+                entry.display().setInterpolationDelay(0);
+                entry.display().setInterpolationDuration(4);
+                entry.display().setTransformation(t);
             }
         }
 
@@ -404,32 +405,33 @@ public class PeekSessionDisplayManager {
                 Bukkit.getPluginManager().callEvent(hoverEvent);
             }
 
-            for (ItemEntry entry : itemEntries) {
-                if (entry.slot() == newTarget && entry.display().isValid()) {
-                    boolean matches = (filterMaterial == null) || (hoveredItem != null && hoveredItem.getType() == filterMaterial);
-                    float targetScale = matches ? 0.22f : 0.05f;
-                    Transformation t = entry.display().getTransformation();
-                    t.getScale().set(targetScale, targetScale, targetScale);
-                    entry.display().setInterpolationDelay(0);
-                    entry.display().setInterpolationDuration(4);
-                    entry.display().setTransformation(t);
-                    if (matches) {
-                        plugin.playConfigSound(player, "hover", Sound.BLOCK_LEVER_CLICK, 0.2f, 1.5f);
-                        if (hoveredItem != null) {
-                            fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
-                                (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
-                            for (fr.skynex.storagepeek.api.audio.SlotHoverSound customSound : apiImpl.getSlotHoverSounds()) {
-                                try {
-                                    if (customSound.getItemMatcher().test(hoveredItem)) {
-                                        player.playSound(player.getLocation(), customSound.getSound(), customSound.getVolume(), customSound.getPitch());
-                                    }
-                                } catch (Throwable ignored) {}
-                            }
+            ItemEntry entry = itemEntriesBySlot.get(newTarget);
+            if (entry != null && entry.display().isValid()) {
+                boolean matches = (filterMaterial == null) || (hoveredItem != null && hoveredItem.getType() == filterMaterial);
+                float targetScale = matches ? 0.22f : 0.05f;
+                Transformation t = entry.display().getTransformation();
+                t.getScale().set(targetScale, targetScale, targetScale);
+                entry.display().setInterpolationDelay(0);
+                entry.display().setInterpolationDuration(4);
+                entry.display().setTransformation(t);
+                if (matches) {
+                    plugin.playConfigSound(player, "hover", Sound.BLOCK_LEVER_CLICK, 0.2f, 1.5f);
+                    if (hoveredItem != null) {
+                        fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl =
+                            (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
+                        for (fr.skynex.storagepeek.api.audio.SlotHoverSound customSound : apiImpl.getSlotHoverSounds()) {
+                            try {
+                                if (customSound.getItemMatcher().test(hoveredItem)) {
+                                    player.playSound(player.getLocation(), customSound.getSound(), customSound.getVolume(), customSound.getPitch());
+                                }
+                            } catch (Throwable ignored) {}
                         }
                     }
-                    break;
                 }
             }
+
+            double xOff = entry != null ? entry.xOff() : 0;
+            double yOff = entry != null ? entry.yOff() : 0;
 
             if (hasItem && hoverNameplateEnabled && hoverLabel != null && hoverLabel.isValid()) {
                 Component displayName = getItemDisplayName(hoveredItem);
@@ -439,16 +441,6 @@ public class PeekSessionDisplayManager {
                     displayName = LegacyComponentSerializer.legacySection().deserialize(formatted);
                 }
                 hoverLabel.text(displayName);
-
-                double xOff = 0;
-                double yOff = 0;
-                for (ItemEntry entry : itemEntries) {
-                    if (entry.slot() == newTarget) {
-                        xOff = entry.xOff();
-                        yOff = entry.yOff();
-                        break;
-                    }
-                }
 
                 Transformation t = hoverLabel.getTransformation();
                 t.getTranslation().set((float) xOff, (float) (yOff + 0.12f), 0.10f);
@@ -465,16 +457,6 @@ public class PeekSessionDisplayManager {
             }
 
             if (hasItem && hoverHighlight != null && hoverHighlight.isValid()) {
-                double xOff = 0;
-                double yOff = 0;
-                for (ItemEntry entry : itemEntries) {
-                    if (entry.slot() == newTarget) {
-                        xOff = entry.xOff();
-                        yOff = entry.yOff();
-                        break;
-                    }
-                }
-
                 Transformation t = hoverHighlight.getTransformation();
                 t.getTranslation().set((float) xOff - 0.08f, (float) yOff - 0.08f, -0.04f);
                 t.getScale().set(0.16f, 0.16f, 0.002f);
@@ -543,16 +525,18 @@ public class PeekSessionDisplayManager {
                 return customName;
             }
         }
-        String raw = item.getType().name();
-        String[] words = raw.split("_");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < words.length; i++) {
-            String word = words[i];
-            if (word.isEmpty()) continue;
-            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1).toLowerCase());
-            if (i < words.length - 1) sb.append(" ");
-        }
-        return Component.text(sb.toString(), NamedTextColor.WHITE);
+        return formattedMaterialNames.computeIfAbsent(item.getType(), mat -> {
+            String raw = mat.name();
+            String[] words = raw.split("_");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < words.length; i++) {
+                String word = words[i];
+                if (word.isEmpty()) continue;
+                sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1).toLowerCase());
+                if (i < words.length - 1) sb.append(" ");
+            }
+            return Component.text(sb.toString(), NamedTextColor.WHITE);
+        });
     }
 
     private String toRoman(int num) {
@@ -775,6 +759,7 @@ public class PeekSessionDisplayManager {
             if (entry.display() != null) entry.display().remove();
         }
         itemEntries.clear();
+        itemEntriesBySlot.clear();
 
         for (TextDisplay display : fakeAmounts.values()) {
             if (display != null) display.remove();
@@ -808,5 +793,8 @@ public class PeekSessionDisplayManager {
     public Map<Integer, BlockDisplay> getDurabilityBars() { return durabilityBarRenderer.getDurabilityBars(); }
     public Map<Integer, BlockDisplay> getDurabilityBgs() { return durabilityBarRenderer.getDurabilityBgs(); }
     public boolean isCleanedUp() { return cleanedUp; }
-    public static void clearBlockDataCache() { blockDataCache.clear(); }
+    public static void clearBlockDataCache() { 
+        blockDataCache.clear(); 
+        formattedMaterialNames.clear();
+    }
 }

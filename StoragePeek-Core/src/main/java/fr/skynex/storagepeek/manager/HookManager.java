@@ -13,7 +13,6 @@ import org.bukkit.loot.LootTable;
 import org.bukkit.loot.LootContext;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
-import java.util.Random;
 
 import java.util.ArrayList;
 import java.util.List;

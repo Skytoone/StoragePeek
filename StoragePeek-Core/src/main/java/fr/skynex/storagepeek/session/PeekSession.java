@@ -601,7 +601,7 @@ public class PeekSession {
         ItemStack item = handSlot == EquipmentSlot.HAND ? 
             player.getInventory().getItemInMainHand() : 
             player.getInventory().getItemInOffHand();
-        if (item != null && item.getType().name().contains("SHULKER_BOX")) {
+        if (item != null && org.bukkit.Tag.SHULKER_BOXES.isTagged(item.getType())) {
             if (item.getItemMeta() instanceof BlockStateMeta bsm) {
                 if (bsm.getBlockState() instanceof org.bukkit.block.ShulkerBox shulkerBox) {
                     shulkerBox.getInventory().setContents(inventory.getContents());
@@ -691,7 +691,7 @@ public class PeekSession {
             baseCenterCache.add(0, 0.12, 0);
         }
 
-        if (block != null && block.getType().name().contains("SHULKER_BOX")) {
+        if (block != null && org.bukkit.Tag.SHULKER_BOXES.isTagged(block.getType())) {
             baseCenterCache.add(0, 0.35, 0);
         }
 
@@ -869,7 +869,7 @@ public class PeekSession {
             ItemStack item = handSlot == EquipmentSlot.HAND ? 
                 player.getInventory().getItemInMainHand() : 
                 player.getInventory().getItemInOffHand();
-            if (item == null || !item.getType().name().contains("SHULKER_BOX")) {
+            if (item == null || !org.bukkit.Tag.SHULKER_BOXES.isTagged(item.getType())) {
                 return false;
             }
             return true;

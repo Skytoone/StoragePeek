@@ -405,11 +405,11 @@ public class RaycastTask extends BukkitRunnable {
             org.bukkit.inventory.EquipmentSlot shulkerSlot = null;
             if (player.isSneaking()) {
                 org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
-                if (handItem != null && handItem.getType().name().contains("SHULKER_BOX")) {
+                if (handItem != null && org.bukkit.Tag.SHULKER_BOXES.isTagged(handItem.getType())) {
                     shulkerSlot = org.bukkit.inventory.EquipmentSlot.HAND;
                 } else {
                     org.bukkit.inventory.ItemStack offHandItem = player.getInventory().getItemInOffHand();
-                    if (offHandItem != null && offHandItem.getType().name().contains("SHULKER_BOX")) {
+                    if (offHandItem != null && org.bukkit.Tag.SHULKER_BOXES.isTagged(offHandItem.getType())) {
                         shulkerSlot = org.bukkit.inventory.EquipmentSlot.OFF_HAND;
                     }
                 }

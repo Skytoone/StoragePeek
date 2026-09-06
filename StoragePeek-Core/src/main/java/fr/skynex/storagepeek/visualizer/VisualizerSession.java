@@ -435,19 +435,17 @@ public class VisualizerSession {
                         display.setItemStack(item.clone());
                     }
 
-                    // Apply slow rotation to floating slots (Crafting Result, Furnace slots,
-                    // Enchanting slot)
-                    if (slot == 0 || (block.getType().name().contains("FURNACE")
-                            || block.getType().name().contains("SMOKER"))) {
+                    // Apply slow rotation to floating slots
+                    Material blockType = block.getType();
+                    boolean isFurnaceOrSmoker = blockType == Material.FURNACE || blockType == Material.BLAST_FURNACE || blockType == Material.SMOKER;
+                    boolean isCraftingTable = blockType == Material.CRAFTING_TABLE;
+                    boolean isEnchantingTable = blockType == Material.ENCHANTING_TABLE;
+
+                    if (slot == 0 || isFurnaceOrSmoker) {
                         Transformation t = display.getTransformation();
                         float angle = (float) (System.currentTimeMillis() / 400.0);
 
-                        if (block.getType().name().contains("CRAFTING_TABLE") && slot == 0) {
-                            t.getLeftRotation().rotationY(angle);
-                        } else if (block.getType().name().contains("ENCHANTING_TABLE")) {
-                            t.getLeftRotation().rotationY(angle);
-                        } else if (block.getType().name().contains("FURNACE")
-                                || block.getType().name().contains("SMOKER")) {
+                        if ((isCraftingTable && slot == 0) || isEnchantingTable || isFurnaceOrSmoker) {
                             t.getLeftRotation().rotationY(angle);
                         }
                         display.setTransformation(t);
@@ -457,7 +455,7 @@ public class VisualizerSession {
         }
 
         // Handle Furnace progression
-        if (block.getState() instanceof Furnace furnace) {
+        if (block.getState(false) instanceof Furnace furnace) {
             double cookProgress = 0.0;
             int cookTotal = furnace.getCookTimeTotal();
             if (cookTotal > 0) {
