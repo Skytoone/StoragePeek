@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -19,15 +20,24 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BaseStorageManager {
 
     private final StoragePeek plugin;
+    private final Map<Material, CachedValue> itemValueCache = new ConcurrentHashMap<>();
+
+    private record CachedValue(double value, long timestamp) {}
 
     public BaseStorageManager(StoragePeek plugin) {
         this.plugin = plugin;
@@ -38,8 +48,9 @@ public class BaseStorageManager {
             ItemStack item = handSlot == EquipmentSlot.HAND ? 
                 player.getInventory().getItemInMainHand() : 
                 player.getInventory().getItemInOffHand();
-            if (item != null && item.getType().name().contains("SHULKER_BOX")) {
-                if (item.getItemMeta() instanceof org.bukkit.inventory.meta.BlockStateMeta bsm) {
+            
+            if (item != null && Tag.SHULKER_BOXES.isTagged(item.getType())) {
+                if (item.getItemMeta() instanceof BlockStateMeta bsm && bsm.hasBlockState()) {
                     if (bsm.getBlockState() instanceof org.bukkit.block.ShulkerBox shulkerBox) {
                         return shulkerBox.getInventory();
                     }
@@ -63,18 +74,7 @@ public class BaseStorageManager {
             if (plugin.getHookManager().getInventory(block, player) instanceof org.bukkit.inventory.DoubleChestInventory dci) {
                 org.bukkit.block.DoubleChest doubleChest = dci.getHolder();
                 if (doubleChest != null) {
-                    Location loc = doubleChest.getLocation();
-                    if (doubleChest.getLeftSide() instanceof org.bukkit.block.BlockState leftState && 
-                        doubleChest.getRightSide() instanceof org.bukkit.block.BlockState rightState) {
-                        Location lLoc = leftState.getLocation().add(0.5, 0.5, 0.5);
-                        Location rLoc = rightState.getLocation().add(0.5, 0.5, 0.5);
-                        return new Location(loc.getWorld(), 
-                            (lLoc.getX() + rLoc.getX()) / 2.0,
-                            (lLoc.getY() + rLoc.getY()) / 2.0,
-                            (lLoc.getZ() + rLoc.getZ()) / 2.0
-                        );
-                    }
-                    return loc;
+                    return doubleChest.getLocation();
                 }
             }
             return block.getLocation().add(0.5, 0.5, 0.5);
@@ -92,21 +92,33 @@ public class BaseStorageManager {
         World world = pLoc.getWorld();
         if (world == null) return containers;
 
-        int minChunkX = (pLoc.getBlockX() - radius) >> 4;
-        int maxChunkX = (pLoc.getBlockX() + radius) >> 4;
-        int minChunkZ = (pLoc.getBlockZ() - radius) >> 4;
-        int maxChunkZ = (pLoc.getBlockZ() + radius) >> 4;
+        int pX = pLoc.getBlockX();
+        int pY = pLoc.getBlockY();
+        int pZ = pLoc.getBlockZ();
+
+        int minChunkX = (pX - radius) >> 4;
+        int maxChunkX = (pX + radius) >> 4;
+        int minChunkZ = (pZ - radius) >> 4;
+        int maxChunkZ = (pZ + radius) >> 4;
 
         double radiusSq = (double) radius * radius;
+        Set<Material> allowedBlocks = plugin.getRaycastTask().getAllowedBlocks();
 
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
                 if (!world.isChunkLoaded(cx, cz)) continue;
                 Chunk chunk = world.getChunkAt(cx, cz);
-                for (BlockState state : chunk.getTileEntities()) {
+
+                BlockState[] tileEntities = chunk.getTileEntities(false);
+                for (BlockState state : tileEntities) {
                     Block block = state.getBlock();
-                    if (block.getLocation().distanceSquared(pLoc) <= radiusSq) {
-                        if (plugin.getHookManager().isCustomContainer(block) || plugin.getRaycastTask().getAllowedBlocks().contains(block.getType())) {
+
+                    int dx = block.getX() - pX;
+                    int dy = block.getY() - pY;
+                    int dz = block.getZ() - pZ;
+
+                    if ((dx * dx + dy * dy + dz * dz) <= radiusSq) {
+                        if (plugin.getHookManager().isCustomContainer(block) || allowedBlocks.contains(block.getType())) {
                             if (plugin.getProtectionManager().canAccess(player, block.getLocation())) {
                                 containers.add(block);
                             }
@@ -124,34 +136,39 @@ public class BaseStorageManager {
         if (pLoc.getWorld() == null) return 0;
 
         List<Block> containers = findContainersInRadius(pLoc, radius, player);
+        if (containers.isEmpty()) return 0;
 
-        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
-            ItemStack item = player.getInventory().getItem(slot);
+        List<ContainerTarget> targetContainers = new ArrayList<>();
+        Set<Inventory> visitedInvs = Collections.newSetFromMap(new IdentityHashMap<>());
+
+        for (Block block : containers) {
+            Inventory inv = plugin.getHookManager().getInventory(block, player);
+            if (inv != null && visitedInvs.add(inv)) {
+                targetContainers.add(new ContainerTarget(block, inv));
+            }
+        }
+
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack item = contents[slot];
             if (item == null || item.getType() == Material.AIR) continue;
 
-            for (Block containerBlock : containers) {
-                Inventory containerInv = plugin.getHookManager().getInventory(containerBlock, player);
-                if (containerInv == null) continue;
-
+            for (ContainerTarget target : targetContainers) {
+                Inventory containerInv = target.inventory();
                 if (containerInv.contains(item.getType())) {
                     HashMap<Integer, ItemStack> remaining = containerInv.addItem(item);
+                    Block containerBlock = target.block();
                     if (remaining.isEmpty()) {
                         totalDeposited += item.getAmount();
                         player.getInventory().setItem(slot, null);
-                        containerBlock.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, containerBlock.getLocation().add(0.5, 1.0, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
-                        if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
-                            plugin.getLootGlowHook().triggerMagnetAbsorptionEffect(player.getLocation(), containerBlock.getLocation().add(0.5, 0.5, 0.5));
-                        }
+                        triggerDepositEffect(player, containerBlock);
                         break;
                     } else {
                         int deposited = item.getAmount() - remaining.get(0).getAmount();
                         if (deposited > 0) {
                             totalDeposited += deposited;
                             player.getInventory().setItem(slot, remaining.get(0));
-                            containerBlock.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, containerBlock.getLocation().add(0.5, 1.0, 0.5), 5, 0.2, 0.2, 0.2, 0.05);
-                            if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
-                                plugin.getLootGlowHook().triggerMagnetAbsorptionEffect(player.getLocation(), containerBlock.getLocation().add(0.5, 0.5, 0.5));
-                            }
+                            triggerDepositEffect(player, containerBlock);
                         }
                     }
                 }
@@ -160,9 +177,15 @@ public class BaseStorageManager {
         return totalDeposited;
     }
 
-    private final Map<Material, CachedValue> itemValueCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private record ContainerTarget(Block block, Inventory inventory) {}
 
-    private record CachedValue(double value, long timestamp) {}
+    private void triggerDepositEffect(Player player, Block containerBlock) {
+        Location effectLoc = containerBlock.getLocation().add(0.5, 1.0, 0.5);
+        containerBlock.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, effectLoc, 5, 0.2, 0.2, 0.2, 0.05);
+        if (plugin.getLootGlowHook() != null && plugin.getLootGlowHook().isActive()) {
+            plugin.getLootGlowHook().triggerMagnetAbsorptionEffect(player.getLocation(), containerBlock.getLocation().add(0.5, 0.5, 0.5));
+        }
+    }
 
     public double getCachedItemValue(fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl apiImpl, ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return 0.0;
@@ -192,10 +215,11 @@ public class BaseStorageManager {
             (fr.skynex.storagepeek.api.impl.StoragePeekAPIImpl) fr.skynex.storagepeek.api.StoragePeekProvider.get();
 
         List<Block> containers = findContainersInRadius(pLoc, radius, player);
+        Set<Inventory> visitedInvs = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (Block block : containers) {
             Inventory inv = plugin.getHookManager().getInventory(block, player);
-            if (inv != null) {
+            if (inv != null && visitedInvs.add(inv)) {
                 totalChests++;
                 totalSlotsCapacity += inv.getSize();
 
@@ -267,9 +291,17 @@ public class BaseStorageManager {
             Vector dir = vec.normalize().multiply(0.4);
             int points = (int) (length / 0.4);
 
-            for (int i = 0; i < Math.min(20, points); i++) {
-                Location p = pLoc.clone().add(dir.clone().multiply(i));
-                p.getWorld().spawnParticle(Particle.END_ROD, p, 1, 0.02, 0.02, 0.02, 0.01);
+            World world = pLoc.getWorld();
+            double startX = pLoc.getX();
+            double startY = pLoc.getY();
+            double startZ = pLoc.getZ();
+            double dirX = dir.getX();
+            double dirY = dir.getY();
+            double dirZ = dir.getZ();
+
+            int maxPoints = Math.min(20, points);
+            for (int i = 0; i < maxPoints; i++) {
+                world.spawnParticle(Particle.END_ROD, startX + dirX * i, startY + dirY * i, startZ + dirZ * i, 1, 0.02, 0.02, 0.02, 0.01);
             }
         }, 1L, 10L);
 
@@ -279,3 +311,4 @@ public class BaseStorageManager {
         }, 300L);
     }
 }
+

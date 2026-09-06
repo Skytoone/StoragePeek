@@ -46,15 +46,18 @@ public class ProtectionManager {
     }
 
     public boolean canAccess(Player player, Location loc) {
+        if (activeHooks.isEmpty()) {
+            return true;
+        }
+
         StoragePeek plugin = StoragePeek.getInstance();
         if (plugin != null) {
             if (!plugin.isProtectionHooksEnabled()) {
                 return true;
             }
-            if (player.hasPermission("storagepeek.bypass.protection")) {
+            if (player != null && player.hasPermission("storagepeek.bypass.protection")) {
                 return true;
             }
-
         }
 
         for (NamedHook namedHook : activeHooks) {

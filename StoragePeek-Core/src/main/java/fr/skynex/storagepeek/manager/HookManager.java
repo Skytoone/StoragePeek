@@ -103,7 +103,7 @@ public class HookManager {
             } catch (Throwable ignored) {}
         }
         
-        BlockState state = block.getState();
+        BlockState state = block.getState(false);
         if (state instanceof Lootable lootable) {
             try {
                 LootTable table = lootable.getLootTable();
@@ -118,12 +118,12 @@ public class HookManager {
                                 .build();
 
                         // FILL THE SNAPSHOT INVENTORY INSTEAD OF THE LIVE DETACHED INVENTORY
-                        table.fillInventory(container.getSnapshotInventory(), new Random(), context);
+                        table.fillInventory(container.getSnapshotInventory(), java.util.concurrent.ThreadLocalRandom.current(), context);
                         lootable.setLootTable(null);
                         state.update(true, false);
                         
                         // Refresh state to retrieve the newly persisted block contents
-                        state = block.getState();
+                        state = block.getState(false);
                     }
                 }
             } catch (Throwable ignored) {}
@@ -163,7 +163,7 @@ public class HookManager {
                             .killer(player)
                             .build();
                     if (entity instanceof InventoryHolder holder) {
-                        table.fillInventory(holder.getInventory(), new Random(), context);
+                        table.fillInventory(holder.getInventory(), java.util.concurrent.ThreadLocalRandom.current(), context);
                         lootable.setLootTable(null);
                     }
                 }
