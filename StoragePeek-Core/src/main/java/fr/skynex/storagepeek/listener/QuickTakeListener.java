@@ -93,6 +93,13 @@ public class QuickTakeListener implements Listener {
     }
 
     private void handleQuickAction(Player player, PeekSession session, org.bukkit.event.Cancellable event, boolean isRightClickActual, boolean isDepositAction) {
+        if (session.getBlock() != null && !plugin.getProtectionManager().canAccess(player, session.getBlock().getLocation())) {
+            return;
+        }
+        if (session.getEntity() != null && !plugin.getProtectionManager().canAccess(player, session.getEntity().getLocation())) {
+            return;
+        }
+
         int slot = session.getTargetSlot();
         if (slot == -1) {
             if (isRightClickActual) {
@@ -130,6 +137,19 @@ public class QuickTakeListener implements Listener {
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand == null || hand.getType() == Material.AIR)
             return;
+
+        PeekSession session = plugin.getActiveSessions().get(player.getUniqueId());
+        if (session != null && session.getHandSlot() != null) {
+            return; // Cannot deposit into a hand-held session
+        }
+
+        // Prevent placing Shulker Boxes inside Shulker Boxes
+        if (org.bukkit.Tag.SHULKER_BOXES.isTagged(hand.getType())) {
+            if (inv.getType() == org.bukkit.event.inventory.InventoryType.SHULKER_BOX
+                    || (session != null && session.getBlock() != null && org.bukkit.Tag.SHULKER_BOXES.isTagged(session.getBlock().getType()))) {
+                return;
+            }
+        }
 
         ItemStack chestItem = inv.getItem(slot);
         PeekSession session = plugin.getActiveSessions().get(player.getUniqueId());
@@ -261,6 +281,12 @@ public class QuickTakeListener implements Listener {
         if (!session.isFrozen()) {
             return;
         }
+        if (session.getBlock() != null && !plugin.getProtectionManager().canAccess(player, session.getBlock().getLocation())) {
+            return;
+        }
+        if (session.getEntity() != null && !plugin.getProtectionManager().canAccess(player, session.getEntity().getLocation())) {
+            return;
+        }
 
         Inventory inv = session.getInventory();
         if (inv == null) {
@@ -343,6 +369,16 @@ public class QuickTakeListener implements Listener {
     }
 
     private void handleSmartDeposit(Player player, PeekSession session) {
+        if (session != null && session.getHandSlot() != null) {
+            return; // Cannot deposit into a hand-held session
+        }
+        if (session != null && session.getBlock() != null && !plugin.getProtectionManager().canAccess(player, session.getBlock().getLocation())) {
+            return;
+        }
+        if (session != null && session.getEntity() != null && !plugin.getProtectionManager().canAccess(player, session.getEntity().getLocation())) {
+            return;
+        }
+
         Inventory containerInv = session.getInventory();
         if (containerInv == null) return;
 
